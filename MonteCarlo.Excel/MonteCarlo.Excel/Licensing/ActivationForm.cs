@@ -16,13 +16,13 @@ namespace MonteCarlo.Excel.Licensing
                 "Activate Monte Carlo";
 
             Width =
-                500;
+                650;
 
             Height =
-                300;
+                390;
 
             StartPosition =
-                FormStartPosition.CenterScreen;
+                FormStartPosition.CenterParent;
 
             FormBorderStyle =
                 FormBorderStyle.FixedDialog;
@@ -45,21 +45,21 @@ namespace MonteCarlo.Excel.Licensing
                         "Activate Monte Carlo for Excel",
 
                     Left =
-                        25,
+                        30,
 
                     Top =
-                        20,
+                        25,
 
                     Width =
-                        420,
+                        560,
 
                     Height =
-                        35,
+                        40,
 
                     Font =
                         new Font(
                             "Segoe UI",
-                            15,
+                            16,
                             FontStyle.Bold)
                 };
 
@@ -76,16 +76,17 @@ namespace MonteCarlo.Excel.Licensing
                 new Label
                 {
                     Text =
-                        "Enter the license key provided when you purchased Monte Carlo.",
+                        "Paste the complete license code provided " +
+                        "when you purchased Monte Carlo.",
 
                     Left =
-                        25,
+                        30,
 
                     Top =
-                        65,
+                        75,
 
                     Width =
-                        430,
+                        560,
 
                     Height =
                         40
@@ -104,16 +105,16 @@ namespace MonteCarlo.Excel.Licensing
                 new Label
                 {
                     Text =
-                        "License Key",
+                        "License Code",
 
                     Left =
-                        25,
+                        30,
 
                     Top =
-                        120,
+                        130,
 
                     Width =
-                        100,
+                        110,
 
                     Height =
                         25,
@@ -131,23 +132,40 @@ namespace MonteCarlo.Excel.Licensing
 
 
             // =====================================================
-            // LICENSE KEY TEXT BOX
+            // LICENSE CODE TEXT BOX
+            //
+            // IMPORTANT:
+            // Do NOT uppercase this text.
+            //
+            // RSA signed license codes are case-sensitive.
             // =====================================================
 
             txtLicenseKey =
                 new TextBox
                 {
                     Left =
-                        130,
+                        145,
 
                     Top =
-                        115,
+                        125,
 
                     Width =
-                        320,
+                        440,
+
+                    Height =
+                        75,
+
+                    Multiline =
+                        true,
+
+                    WordWrap =
+                        false,
+
+                    ScrollBars =
+                        ScrollBars.Horizontal,
 
                     CharacterCasing =
-                        CharacterCasing.Upper
+                        CharacterCasing.Normal
                 };
 
 
@@ -163,13 +181,13 @@ namespace MonteCarlo.Excel.Licensing
                 new Label
                 {
                     Left =
-                        25,
+                        30,
 
                     Top =
-                        160,
+                        220,
 
                     Width =
-                        425,
+                        555,
 
                     Height =
                         35
@@ -191,13 +209,13 @@ namespace MonteCarlo.Excel.Licensing
                         "Activate",
 
                     Left =
-                        270,
+                        395,
 
                     Top =
-                        205,
+                        285,
 
                     Width =
-                        85,
+                        90,
 
                     Height =
                         32
@@ -223,13 +241,13 @@ namespace MonteCarlo.Excel.Licensing
                         "Cancel",
 
                     Left =
-                        365,
+                        495,
 
                     Top =
-                        205,
+                        285,
 
                     Width =
-                        85,
+                        90,
 
                     Height =
                         32,
@@ -252,7 +270,7 @@ namespace MonteCarlo.Excel.Licensing
 
 
             // =====================================================
-            // LOAD EXISTING KEY IF PRESENT
+            // LOAD EXISTING LICENSE IF PRESENT
             // =====================================================
 
             string? existingKey =
@@ -264,6 +282,14 @@ namespace MonteCarlo.Excel.Licensing
             {
                 txtLicenseKey.Text =
                     existingKey;
+
+
+                txtLicenseKey.SelectionStart =
+                    0;
+
+
+                txtLicenseKey.SelectionLength =
+                    0;
             }
         }
 
@@ -276,15 +302,35 @@ namespace MonteCarlo.Excel.Licensing
             object? sender,
             EventArgs e)
         {
-            string licenseKey =
+            string licenseCode =
                 txtLicenseKey.Text.Trim();
 
 
             if (string.IsNullOrWhiteSpace(
-                    licenseKey))
+                    licenseCode))
             {
                 MessageBox.Show(
-                    "Enter a license key.",
+                    "Paste the complete license code.",
+                    "Monte Carlo Activation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                return;
+            }
+
+
+            // =====================================================
+            // BASIC FORMAT CHECK
+            // =====================================================
+
+            if (!licenseCode.StartsWith(
+                    "MC1.",
+                    StringComparison.Ordinal))
+            {
+                MessageBox.Show(
+                    "This does not appear to be a valid Monte Carlo " +
+                    "license code.\n\n" +
+                    "The license code should begin with MC1.",
                     "Monte Carlo Activation",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
@@ -304,20 +350,19 @@ namespace MonteCarlo.Excel.Licensing
 
                 LicenseInfo? activatedLicense =
                     LicenseService.Activate(
-                        licenseKey);
+                        licenseCode);
 
 
-                if (
-                    activatedLicense == null
-                    ||
-                    !activatedLicense.IsValid)
+                if (activatedLicense == null)
                 {
                     lblStatus.Text =
-                        "License key is not valid.";
+                        "License code is not valid.";
 
 
                     MessageBox.Show(
-                        "The license key could not be activated.",
+                        "The license could not be validated.\n\n" +
+                        "Make sure the entire license code was copied " +
+                        "without modifying any characters.",
                         "Monte Carlo Activation",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
@@ -326,9 +371,33 @@ namespace MonteCarlo.Excel.Licensing
                 }
 
 
-                LicenseStorage.SaveLicenseKey(
-                    licenseKey);
+                // =================================================
+                // EXPIRED LICENSE
+                // =================================================
 
+                if (!activatedLicense.IsValid)
+                {
+                    lblStatus.Text =
+                        "License has expired.";
+
+
+                    MessageBox.Show(
+                        $"This license has expired.\n\n" +
+                        $"Licensed To: " +
+                        $"{activatedLicense.LicensedTo}\n" +
+                        $"Expiry: " +
+                        $"{activatedLicense.ExpiryDate:dd-MMM-yyyy}",
+                        "Monte Carlo Activation",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    return;
+                }
+
+
+                // =================================================
+                // SUCCESS
+                // =================================================
 
                 lblStatus.Text =
                     "License activated successfully.";
@@ -337,7 +406,10 @@ namespace MonteCarlo.Excel.Licensing
                 MessageBox.Show(
                     $"License activated successfully.\n\n" +
                     $"Type: {activatedLicense.Type}\n" +
-                    $"Licensed To: {activatedLicense.LicensedTo}",
+                    $"Licensed To: " +
+                    $"{activatedLicense.LicensedTo}\n" +
+                    $"Expiry: " +
+                    $"{activatedLicense.ExpiryDate:dd-MMM-yyyy}",
                     "Monte Carlo Activation",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);

@@ -22,22 +22,6 @@ namespace MonteCarlo.Excel.Licensing
 
 
         // =========================================================
-        // DEVELOPMENT TEST KEYS
-        //
-        // IMPORTANT:
-        // These are only temporary local-development keys.
-        // They must NOT be used in the commercial release.
-        // =========================================================
-
-        private const string DevelopmentProfessionalKey =
-            "MC-PRO-DEV-2026";
-
-
-        private const string DevelopmentEnterpriseKey =
-            "MC-ENT-DEV-2026";
-
-
-        // =========================================================
         // GET CURRENT LICENSE
         // =========================================================
 
@@ -68,29 +52,41 @@ namespace MonteCarlo.Excel.Licensing
 
 
             // -----------------------------------------------------
-            // CHECK SAVED ACTIVATED LICENSE
+            // CHECK SAVED SIGNED LICENSE
             // -----------------------------------------------------
 
-            string? savedLicenseKey =
+            string? savedLicenseCode =
                 LicenseStorage.LoadLicenseKey();
 
 
             if (!string.IsNullOrWhiteSpace(
-                    savedLicenseKey))
+                    savedLicenseCode))
             {
-                LicenseInfo? activatedLicense =
-                    ValidateDevelopmentLicenseKey(
-                        savedLicenseKey);
+                LicenseInfo? savedLicense =
+                    LocalLicenseValidator.Validate(
+                        savedLicenseCode);
 
 
-                if (
-                    activatedLicense != null
-                    &&
-                    activatedLicense.IsValid)
+                if (savedLicense != null)
                 {
+                    // Important:
+                    // Return the actual license even when expired.
+                    //
+                    // This allows LicenseForm to show:
+                    // Professional / Enterprise
+                    // Expired
+                    // Customer name
+                    // Expiry date
+
                     return
-                        activatedLicense;
+                        savedLicense;
                 }
+
+
+                // Invalid or tampered stored license.
+                //
+                // Remove it so future checks fall back to the trial.
+                LicenseStorage.ClearLicense();
             }
 
 
@@ -104,38 +100,35 @@ namespace MonteCarlo.Excel.Licensing
 
 
         // =========================================================
-        // ACTIVATE
+        // ACTIVATE SIGNED LICENSE
         // =========================================================
 
         public static LicenseInfo? Activate(
-            string licenseKey)
+            string licenseCode)
         {
             if (string.IsNullOrWhiteSpace(
-                    licenseKey))
+                    licenseCode))
             {
                 return
                     null;
             }
 
 
-            string normalizedKey =
-                NormalizeLicenseKey(
-                    licenseKey);
+            string normalizedCode =
+                NormalizeLicenseCode(
+                    licenseCode);
 
 
             // -----------------------------------------------------
-            // TEMPORARY DEVELOPMENT VALIDATION
+            // VERIFY SIGNATURE + PAYLOAD
             // -----------------------------------------------------
 
             LicenseInfo? license =
-                ValidateDevelopmentLicenseKey(
-                    normalizedKey);
+                LocalLicenseValidator.Validate(
+                    normalizedCode);
 
 
-            if (
-                license == null
-                ||
-                !license.IsValid)
+            if (license == null)
             {
                 return
                     null;
@@ -143,11 +136,22 @@ namespace MonteCarlo.Excel.Licensing
 
 
             // -----------------------------------------------------
-            // SAVE ACTIVATED KEY
+            // DO NOT ACTIVATE AN EXPIRED LICENSE
+            // -----------------------------------------------------
+
+            if (!license.IsValid)
+            {
+                return
+                    license;
+            }
+
+
+            // -----------------------------------------------------
+            // SAVE SIGNED LICENSE LOCALLY
             // -----------------------------------------------------
 
             LicenseStorage.SaveLicenseKey(
-                normalizedKey);
+                normalizedCode);
 
 
             return
@@ -156,83 +160,77 @@ namespace MonteCarlo.Excel.Licensing
 
 
         // =========================================================
-        // VALIDATE SAVED / ENTERED KEY
-        //
-        // Later this method will be replaced by an HTTPS call to
-        // the production licensing service.
+        // HAS ACCESS
         // =========================================================
 
-        private static LicenseInfo?
-            ValidateDevelopmentLicenseKey(
-                string licenseKey)
+        public static bool HasAccess()
         {
-            string normalizedKey =
-                NormalizeLicenseKey(
-                    licenseKey);
-
-
-            // -----------------------------------------------------
-            // PROFESSIONAL TEST LICENSE
-            // -----------------------------------------------------
-
-            if (
-                string.Equals(
-                    normalizedKey,
-                    DevelopmentProfessionalKey,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return
-                    new LicenseInfo
-                    {
-                        Type =
-                            LicenseType.Professional,
-
-                        Status =
-                            LicenseStatus.Active,
-
-                        LicensedTo =
-                            "Development Professional User",
-
-                        ExpiryDate =
-                            DateTime.Today
-                                .AddYears(
-                                    1)
-                    };
-            }
-
-
-            // -----------------------------------------------------
-            // ENTERPRISE TEST LICENSE
-            // -----------------------------------------------------
-
-            if (
-                string.Equals(
-                    normalizedKey,
-                    DevelopmentEnterpriseKey,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return
-                    new LicenseInfo
-                    {
-                        Type =
-                            LicenseType.Enterprise,
-
-                        Status =
-                            LicenseStatus.Active,
-
-                        LicensedTo =
-                            "Development Enterprise User",
-
-                        ExpiryDate =
-                            DateTime.Today
-                                .AddYears(
-                                    1)
-                    };
-            }
+            LicenseInfo license =
+                GetCurrentLicense();
 
 
             return
-                null;
+                license.IsValid;
+        }
+
+
+        // =========================================================
+        // REQUIRE ACCESS
+        // =========================================================
+
+        public static void EnsureAccess()
+        {
+            LicenseInfo license =
+                GetCurrentLicense();
+
+
+            if (license.IsValid)
+            {
+                return;
+            }
+
+
+            if (
+                license.Status ==
+                LicenseStatus.Expired)
+            {
+                throw new InvalidOperationException(
+                    "Your Monte Carlo license or trial has expired.");
+            }
+
+
+            throw new InvalidOperationException(
+                "Your Monte Carlo license is not active.");
+        }
+
+
+        // =========================================================
+        // DEACTIVATE
+        // =========================================================
+
+        public static void Deactivate()
+        {
+            LicenseStorage.ClearLicense();
+        }
+
+
+        // =========================================================
+        // NORMALIZE LICENSE CODE
+        //
+        // IMPORTANT:
+        //
+        // Signed license codes are case-sensitive because Base64URL
+        // payload/signature data is case-sensitive.
+        //
+        // Therefore DO NOT call ToUpperInvariant().
+        // =========================================================
+
+        private static string NormalizeLicenseCode(
+            string licenseCode)
+        {
+            return
+                licenseCode
+                    .Trim();
         }
 
 
@@ -273,70 +271,6 @@ namespace MonteCarlo.Excel.Licensing
                     ExpiryDate =
                         expiryDate
                 };
-        }
-
-
-        // =========================================================
-        // HAS ACCESS
-        // =========================================================
-
-        public static bool HasAccess()
-        {
-            LicenseInfo license =
-                GetCurrentLicense();
-
-
-            return
-                license.IsValid;
-        }
-
-
-        // =========================================================
-        // REQUIRE ACCESS
-        // =========================================================
-
-        public static void EnsureAccess()
-        {
-            LicenseInfo license =
-                GetCurrentLicense();
-
-
-            if (license.IsValid)
-            {
-                return;
-            }
-
-
-            throw new InvalidOperationException(
-                "Your Monte Carlo license is not active.");
-        }
-
-
-        // =========================================================
-        // DEACTIVATE
-        //
-        // For now this only clears the locally stored key.
-        // Production deactivation will also notify the license
-        // server and release the device activation.
-        // =========================================================
-
-        public static void Deactivate()
-        {
-            LicenseStorage.ClearLicense();
-        }
-
-
-        // =========================================================
-        // NORMALIZE KEY
-        // =========================================================
-
-        private static string NormalizeLicenseKey(
-            string licenseKey)
-        {
-            return
-                licenseKey
-                    .Trim()
-                    .ToUpperInvariant();
         }
 
 

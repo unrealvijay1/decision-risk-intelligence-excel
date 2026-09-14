@@ -361,3 +361,14 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ============================================================
+# Monte Carlo Licensing
+# ============================================================
+
+# Never commit private/signing keys
+**/Keys/
+**/private-key.pem
+
+# Never commit generated customer licenses
+**/Licenses/

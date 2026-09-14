@@ -14,6 +14,7 @@
     <None Remove="Icons\model_manager.png" />
     <None Remove="Icons\reload_model.png" />
     <None Remove="Icons\run_simulation.png" />
+    <None Remove="Licensing\public-key.pem" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +24,7 @@
     <EmbeddedResource Include="Icons\model_manager.png" />
     <EmbeddedResource Include="Icons\reload_model.png" />
     <EmbeddedResource Include="Icons\run_simulation.png" />
+    <EmbeddedResource Include="Licensing\public-key.pem" />
   </ItemGroup>
 
   <ItemGroup>
