@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -383,7 +382,7 @@ namespace MonteCarlo.Excel
 
 
                 if (string.IsNullOrWhiteSpace(
-                    forecastName))
+                        forecastName))
                 {
                     forecastName =
                         $"{sheetName}!{address}";
@@ -508,9 +507,13 @@ namespace MonteCarlo.Excel
 
                 MessageBox.Show(
                     $"Model loaded from workbook.\n\n" +
-                    $"Assumptions: {SimulationModel.Assumptions.Count}\n" +
+
+                    $"Assumptions: " +
+                    $"{SimulationModel.Assumptions.Count}\n" +
                     $"{assumptionText}\n\n" +
-                    $"Forecasts: {SimulationModel.Forecasts.Count}\n" +
+
+                    $"Forecasts: " +
+                    $"{SimulationModel.Forecasts.Count}\n" +
                     $"{forecastText}",
                     "Monte Carlo",
                     MessageBoxButtons.OK,
@@ -531,20 +534,26 @@ namespace MonteCarlo.Excel
         public void OnRunSimulation(
             IRibbonControl control)
         {
-            dynamic excelApp =
-                null;
-
-
             try
             {
+                // -------------------------------------------------
+                // LOAD MODEL
+                // -------------------------------------------------
+
                 WorkbookPersistence.LoadModel();
 
+
+                // -------------------------------------------------
+                // BASIC VALIDATION
+                // -------------------------------------------------
 
                 if (SimulationModel.Assumptions.Count == 0)
                 {
                     MessageBox.Show(
                         "No saved assumptions were found.",
-                        "Monte Carlo");
+                        "Monte Carlo",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
 
                     return;
                 }
@@ -554,15 +563,17 @@ namespace MonteCarlo.Excel
                 {
                     MessageBox.Show(
                         "No saved forecasts were found.",
-                        "Monte Carlo");
+                        "Monte Carlo",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
 
                     return;
                 }
 
 
-                excelApp =
-                    ExcelDnaUtil.Application;
-
+                // -------------------------------------------------
+                // SETTINGS
+                // -------------------------------------------------
 
                 using SimulationSettingsForm settingsForm =
                     new SimulationSettingsForm();
@@ -585,323 +596,18 @@ namespace MonteCarlo.Excel
                 }
 
 
-                // =================================================
-                // ASSUMPTION SENSITIVITY NAMES
-                // =================================================
-
-                var assumptionSensitivityNames =
-                    new Dictionary<
-                        AssumptionDefinition,
-                        string>();
-
-
-                foreach (
-                    AssumptionDefinition assumption
-                    in SimulationModel.Assumptions)
-                {
-                    string desiredName =
-                        GetAssumptionDisplayName(
-                            assumption);
-
-
-                    string finalName =
-                        desiredName;
-
-
-                    int suffix =
-                        2;
-
-
-                    while (
-                        assumptionSensitivityNames
-                            .Values
-                            .Any(
-                                x =>
-                                    string.Equals(
-                                        x,
-                                        finalName,
-                                        StringComparison.OrdinalIgnoreCase)))
-                    {
-                        finalName =
-                            $"{desiredName} ({suffix})";
-
-
-                        suffix++;
-                    }
-
-
-                    assumptionSensitivityNames[
-                        assumption] =
-                        finalName;
-                }
-
-
-                // =================================================
-                // ASSUMPTION SAMPLES
-                // =================================================
-
-                var assumptionSamples =
-                    new Dictionary<
-                        string,
-                        double[]>();
-
-
-                foreach (
-                    AssumptionDefinition assumption
-                    in SimulationModel.Assumptions)
-                {
-                    assumptionSamples[
-                        assumptionSensitivityNames[
-                            assumption]] =
-                        new double[trials];
-                }
-
-
-                // =================================================
-                // FORECAST SAMPLES
-                // =================================================
-
-                var forecastSamples =
-                    new Dictionary<
-                        ForecastDefinition,
-                        double[]>();
-
-
-                foreach (
-                    ForecastDefinition forecast
-                    in SimulationModel.Forecasts)
-                {
-                    forecastSamples[
-                        forecast] =
-                        new double[trials];
-                }
-
-
-                // =================================================
-                // SAVE ORIGINAL ASSUMPTION VALUES
-                // =================================================
-
-                var originalValues =
-                    new Dictionary<
-                        AssumptionDefinition,
-                        object?>();
-
-
-                foreach (
-                    AssumptionDefinition assumption
-                    in SimulationModel.Assumptions)
-                {
-                    dynamic sheet =
-                        excelApp.Worksheets[
-                            assumption.SheetName];
-
-
-                    dynamic cell =
-                        sheet.Range[
-                            assumption.CellAddress];
-
-
-                    originalValues[
-                        assumption] =
-                        cell.Value2;
-                }
-
-
-                bool originalScreenUpdating =
-                    excelApp.ScreenUpdating;
-
-
-                bool originalEnableEvents =
-                    excelApp.EnableEvents;
-
-
-                excelApp.ScreenUpdating =
-                    false;
-
-
-                excelApp.EnableEvents =
-                    false;
-
-
-                int progressInterval =
-                    Math.Max(
-                        1,
-                        trials / 100);
-
-
-                // =================================================
-                // SIMULATION LOOP
-                // =================================================
-
-                try
-                {
-                    for (
-                        int i = 0;
-                        i < trials;
-                        i++)
-                    {
-                        // -----------------------------------------
-                        // SAMPLE ALL ASSUMPTIONS
-                        // -----------------------------------------
-
-                        foreach (
-                            AssumptionDefinition assumption
-                            in SimulationModel.Assumptions)
-                        {
-                            dynamic sheet =
-                                excelApp.Worksheets[
-                                    assumption.SheetName];
-
-
-                            dynamic cell =
-                                sheet.Range[
-                                    assumption.CellAddress];
-
-
-                            double sample =
-                                GenerateSample(
-                                    assumption);
-
-
-                            string sensitivityName =
-                                assumptionSensitivityNames[
-                                    assumption];
-
-
-                            assumptionSamples[
-                                sensitivityName][i] =
-                                sample;
-
-
-                            cell.Value2 =
-                                sample;
-                        }
-
-
-                        // -----------------------------------------
-                        // CALCULATE MODEL
-                        // -----------------------------------------
-
-                        excelApp.Calculate();
-
-
-                        // -----------------------------------------
-                        // CAPTURE ALL FORECASTS
-                        // -----------------------------------------
-
-                        foreach (
-                            ForecastDefinition forecast
-                            in SimulationModel.Forecasts)
-                        {
-                            dynamic forecastSheet =
-                                excelApp.Worksheets[
-                                    forecast.SheetName];
-
-
-                            dynamic forecastCell =
-                                forecastSheet.Range[
-                                    forecast.CellAddress];
-
-
-                            object forecastValue =
-                                forecastCell.Value2;
-
-
-                            if (forecastValue == null)
-                            {
-                                throw new Exception(
-                                    $"Forecast " +
-                                    $"{forecast.SheetName}!" +
-                                    $"{forecast.CellAddress} " +
-                                    $"returned no value.");
-                            }
-
-
-                            forecastSamples[
-                                forecast][i] =
-                                Convert.ToDouble(
-                                    forecastValue);
-                        }
-
-
-                        // -----------------------------------------
-                        // PROGRESS
-                        // -----------------------------------------
-
-                        if (
-                            i % progressInterval == 0
-                            ||
-                            i == trials - 1)
-                        {
-                            int percentage =
-                                (int)(
-                                    (i + 1) *
-                                    100.0 /
-                                    trials);
-
-
-                            excelApp.StatusBar =
-                                $"Monte Carlo Simulation: " +
-                                $"{percentage}% " +
-                                $"({i + 1:N0}/{trials:N0})";
-                        }
-                    }
-                }
-                finally
-                {
-                    // ---------------------------------------------
-                    // RESTORE INPUTS
-                    // ---------------------------------------------
-
-                    foreach (
-                        var item
-                        in originalValues)
-                    {
-                        dynamic sheet =
-                            excelApp.Worksheets[
-                                item.Key.SheetName];
-
-
-                        dynamic cell =
-                            sheet.Range[
-                                item.Key.CellAddress];
-
-
-                        cell.Value2 =
-                            item.Value;
-                    }
-
-
-                    excelApp.Calculate();
-
-
-                    excelApp.ScreenUpdating =
-                        originalScreenUpdating;
-
-
-                    excelApp.EnableEvents =
-                        originalEnableEvents;
-
-
-                    excelApp.StatusBar =
-                        false;
-                }
-
-
-                // =================================================
-                // RESULT OBJECT
-                // =================================================
+                // -------------------------------------------------
+                // RUN THROUGH SERVICE
+                // -------------------------------------------------
 
                 SimulationRunResult simulationResult =
-                    new SimulationRunResult(
-                        trials,
-                        forecastSamples,
-                        assumptionSamples);
+                    SimulationService.Run(
+                        trials);
 
 
-                // =================================================
+                // -------------------------------------------------
                 // RESULTS DASHBOARD
-                // =================================================
+                // -------------------------------------------------
 
                 using ResultsForm resultsForm =
                     new ResultsForm(
@@ -914,20 +620,6 @@ namespace MonteCarlo.Excel
             {
                 ShowError(
                     ex);
-            }
-            finally
-            {
-                if (excelApp != null)
-                {
-                    try
-                    {
-                        excelApp.StatusBar =
-                            false;
-                    }
-                    catch
-                    {
-                    }
-                }
             }
         }
 
@@ -1138,86 +830,18 @@ namespace MonteCarlo.Excel
                 btnCancel;
 
 
+            textBox.SelectAll();
+
+
             if (dialog.ShowDialog()
                 != DialogResult.OK)
             {
-                return
-                    null;
+                return null;
             }
 
 
             return
                 textBox.Text;
-        }
-
-
-        // =========================================================
-        // DISTRIBUTION SAMPLING
-        // =========================================================
-
-        private static double GenerateSample(
-            AssumptionDefinition assumption)
-        {
-            switch (assumption.Distribution)
-            {
-                case DistributionType.Normal:
-
-                    return
-                        MonteCarlo.Core
-                            .NormalDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2);
-
-
-                case DistributionType.Triangular:
-
-                    return
-                        MonteCarlo.Core
-                            .TriangularDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2,
-                                assumption.Parameter3);
-
-
-                case DistributionType.Pert:
-
-                    return
-                        MonteCarlo.Core
-                            .PertDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2,
-                                assumption.Parameter3);
-
-
-                case DistributionType.Uniform:
-
-                    return
-                        MonteCarlo.Core
-                            .UniformDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2);
-
-
-                case DistributionType.Lognormal:
-
-                    return
-                        MonteCarlo.Core
-                            .LognormalDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2);
-
-
-                default:
-
-                    throw new InvalidOperationException(
-                        $"Unsupported distribution: " +
-                        $"{assumption.Distribution}");
-            }
         }
 
 
