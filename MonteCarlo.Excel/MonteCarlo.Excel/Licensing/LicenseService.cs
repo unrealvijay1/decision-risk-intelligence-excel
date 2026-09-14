@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 
 namespace MonteCarlo.Excel.Licensing
 {
@@ -9,16 +8,16 @@ namespace MonteCarlo.Excel.Licensing
         // DEVELOPMENT SETTINGS
         // =========================================================
 
+        // TRUE:
+        //   Development machine has unrestricted access.
+        //
+        // FALSE:
+        //   Normal commercial licensing flow:
+        //   Signed license -> Trial fallback.
+        //
+        // Keep FALSE when testing the customer experience.
         private const bool DevelopmentMode =
             false;
-
-
-        private const int TrialDays =
-            30;
-
-
-        private const string TrialFileName =
-            "trial.dat";
 
 
         // =========================================================
@@ -52,7 +51,7 @@ namespace MonteCarlo.Excel.Licensing
 
 
             // -----------------------------------------------------
-            // CHECK SAVED SIGNED LICENSE
+            // CHECK SAVED SIGNED CUSTOMER LICENSE
             // -----------------------------------------------------
 
             string? savedLicenseCode =
@@ -69,10 +68,10 @@ namespace MonteCarlo.Excel.Licensing
 
                 if (savedLicense != null)
                 {
-                    // Important:
-                    // Return the actual license even when expired.
+                    // Return even if expired.
                     //
-                    // This allows LicenseForm to show:
+                    // This allows the License screen to show:
+                    //
                     // Professional / Enterprise
                     // Expired
                     // Customer name
@@ -83,24 +82,29 @@ namespace MonteCarlo.Excel.Licensing
                 }
 
 
-                // Invalid or tampered stored license.
-                //
-                // Remove it so future checks fall back to the trial.
+                // -------------------------------------------------
+                // INVALID / TAMPERED SAVED LICENSE
+                // -------------------------------------------------
+
+                // If the stored license no longer passes RSA
+                // validation, remove it.
                 LicenseStorage.ClearLicense();
             }
 
 
             // -----------------------------------------------------
-            // FALL BACK TO TRIAL
+            // NO CUSTOMER LICENSE
+            //
+            // Use protected local trial.
             // -----------------------------------------------------
 
             return
-                GetTrialLicense();
+                TrialService.GetTrialLicense();
         }
 
 
         // =========================================================
-        // ACTIVATE SIGNED LICENSE
+        // ACTIVATE LICENSE
         // =========================================================
 
         public static LicenseInfo? Activate(
@@ -114,13 +118,21 @@ namespace MonteCarlo.Excel.Licensing
             }
 
 
+            // -----------------------------------------------------
+            // IMPORTANT
+            //
+            // Signed license codes are CASE-SENSITIVE.
+            //
+            // Do not uppercase or otherwise modify the code.
+            // -----------------------------------------------------
+
             string normalizedCode =
                 NormalizeLicenseCode(
                     licenseCode);
 
 
             // -----------------------------------------------------
-            // VERIFY SIGNATURE + PAYLOAD
+            // VERIFY SIGNATURE AND PAYLOAD
             // -----------------------------------------------------
 
             LicenseInfo? license =
@@ -136,7 +148,7 @@ namespace MonteCarlo.Excel.Licensing
 
 
             // -----------------------------------------------------
-            // DO NOT ACTIVATE AN EXPIRED LICENSE
+            // DO NOT STORE EXPIRED LICENSE
             // -----------------------------------------------------
 
             if (!license.IsValid)
@@ -147,7 +159,7 @@ namespace MonteCarlo.Excel.Licensing
 
 
             // -----------------------------------------------------
-            // SAVE SIGNED LICENSE LOCALLY
+            // SAVE VALID SIGNED LICENSE
             // -----------------------------------------------------
 
             LicenseStorage.SaveLicenseKey(
@@ -175,7 +187,7 @@ namespace MonteCarlo.Excel.Licensing
 
 
         // =========================================================
-        // REQUIRE ACCESS
+        // ENSURE ACCESS
         // =========================================================
 
         public static void EnsureAccess()
@@ -194,8 +206,17 @@ namespace MonteCarlo.Excel.Licensing
                 license.Status ==
                 LicenseStatus.Expired)
             {
+                if (
+                    license.Type ==
+                    LicenseType.Trial)
+                {
+                    throw new InvalidOperationException(
+                        "Your 30-day Monte Carlo trial has expired.");
+                }
+
+
                 throw new InvalidOperationException(
-                    "Your Monte Carlo license or trial has expired.");
+                    "Your Monte Carlo license has expired.");
             }
 
 
@@ -205,161 +226,38 @@ namespace MonteCarlo.Excel.Licensing
 
 
         // =========================================================
-        // DEACTIVATE
+        // DEACTIVATE LICENSE
         // =========================================================
 
         public static void Deactivate()
         {
+            // Removes the signed customer license.
+            //
+            // IMPORTANT:
+            // This does NOT reset the trial.
+            //
+            // If the original trial has already expired,
+            // deactivation returns the user to that expired trial.
+
             LicenseStorage.ClearLicense();
         }
 
 
         // =========================================================
         // NORMALIZE LICENSE CODE
-        //
-        // IMPORTANT:
-        //
-        // Signed license codes are case-sensitive because Base64URL
-        // payload/signature data is case-sensitive.
-        //
-        // Therefore DO NOT call ToUpperInvariant().
         // =========================================================
 
         private static string NormalizeLicenseCode(
             string licenseCode)
         {
-            return
-                licenseCode
-                    .Trim();
-        }
-
-
-        // =========================================================
-        // TRIAL LICENSE
-        // =========================================================
-
-        private static LicenseInfo GetTrialLicense()
-        {
-            DateTime trialStart =
-                GetOrCreateTrialStartDate();
-
-
-            DateTime expiryDate =
-                trialStart
-                    .AddDays(
-                        TrialDays);
-
-
-            LicenseStatus status =
-                DateTime.Today <= expiryDate
-                    ? LicenseStatus.Active
-                    : LicenseStatus.Expired;
-
+            // Only remove whitespace before/after the entire code.
+            //
+            // Do NOT call ToUpperInvariant().
+            // Base64URL data inside the signed license is
+            // case-sensitive.
 
             return
-                new LicenseInfo
-                {
-                    Type =
-                        LicenseType.Trial,
-
-                    Status =
-                        status,
-
-                    LicensedTo =
-                        "Trial User",
-
-                    ExpiryDate =
-                        expiryDate
-                };
-        }
-
-
-        // =========================================================
-        // TRIAL START DATE
-        // =========================================================
-
-        private static DateTime GetOrCreateTrialStartDate()
-        {
-            string path =
-                GetTrialFilePath();
-
-
-            if (File.Exists(
-                    path))
-            {
-                try
-                {
-                    string storedValue =
-                        File.ReadAllText(
-                            path);
-
-
-                    if (
-                        DateTime.TryParse(
-                            storedValue,
-                            out DateTime trialStart))
-                    {
-                        return
-                            trialStart.Date;
-                    }
-                }
-                catch
-                {
-                    // Development-stage fallback.
-                }
-            }
-
-
-            DateTime newTrialStart =
-                DateTime.Today;
-
-
-            string? directory =
-                Path.GetDirectoryName(
-                    path);
-
-
-            if (
-                !string.IsNullOrWhiteSpace(
-                    directory))
-            {
-                Directory.CreateDirectory(
-                    directory);
-            }
-
-
-            File.WriteAllText(
-                path,
-                newTrialStart.ToString(
-                    "O"));
-
-
-            return
-                newTrialStart;
-        }
-
-
-        // =========================================================
-        // TRIAL FILE LOCATION
-        // =========================================================
-
-        private static string GetTrialFilePath()
-        {
-            string appData =
-                Environment.GetFolderPath(
-                    Environment.SpecialFolder.LocalApplicationData);
-
-
-            string folder =
-                Path.Combine(
-                    appData,
-                    "MonteCarloExcel");
-
-
-            return
-                Path.Combine(
-                    folder,
-                    TrialFileName);
+                licenseCode.Trim();
         }
     }
 }
