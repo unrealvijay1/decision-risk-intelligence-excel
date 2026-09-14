@@ -403,71 +403,57 @@ namespace MonteCarlo.Excel
 
         // =========================================================
         // DISTRIBUTION SAMPLING
+        //
+        // SimulationService now delegates the actual statistical
+        // sampling to MonteCarlo.Core.
         // =========================================================
 
         private static double GenerateSample(
             AssumptionDefinition assumption)
         {
-            switch (assumption.Distribution)
-            {
-                case DistributionType.Normal:
-
-                    return
+            MonteCarlo.Core.DistributionKind distribution =
+                assumption.Distribution switch
+                {
+                    DistributionType.Normal =>
                         MonteCarlo.Core
-                            .NormalDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2);
+                            .DistributionKind
+                            .Normal,
 
-
-                case DistributionType.Triangular:
-
-                    return
+                    DistributionType.Triangular =>
                         MonteCarlo.Core
-                            .TriangularDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2,
-                                assumption.Parameter3);
+                            .DistributionKind
+                            .Triangular,
 
-
-                case DistributionType.Pert:
-
-                    return
+                    DistributionType.Pert =>
                         MonteCarlo.Core
-                            .PertDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2,
-                                assumption.Parameter3);
+                            .DistributionKind
+                            .Pert,
 
-
-                case DistributionType.Uniform:
-
-                    return
+                    DistributionType.Uniform =>
                         MonteCarlo.Core
-                            .UniformDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2);
+                            .DistributionKind
+                            .Uniform,
 
-
-                case DistributionType.Lognormal:
-
-                    return
+                    DistributionType.Lognormal =>
                         MonteCarlo.Core
-                            .LognormalDistribution
-                            .Sample(
-                                assumption.Parameter1,
-                                assumption.Parameter2);
+                            .DistributionKind
+                            .Lognormal,
+
+                    _ =>
+                        throw new InvalidOperationException(
+                            $"Unsupported distribution: " +
+                            $"{assumption.Distribution}")
+                };
 
 
-                default:
-
-                    throw new InvalidOperationException(
-                        $"Unsupported distribution: " +
-                        $"{assumption.Distribution}");
-            }
+            return
+                MonteCarlo.Core
+                    .DistributionSampler
+                    .Sample(
+                        distribution,
+                        assumption.Parameter1,
+                        assumption.Parameter2,
+                        assumption.Parameter3);
         }
     }
 }
