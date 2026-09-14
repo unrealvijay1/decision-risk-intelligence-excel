@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="../MonteCarlo.Core.Tests/MonteCarlo.Core.Tests.csproj" Id="0cba0190-7cd4-4439-a4f1-d18bc24268ba" />
   <Project Path="../MonteCarlo.Core/MonteCarlo.Core.csproj" Id="69c25cf8-003c-47aa-ade7-3a469eb20dec" />
   <Project Path="MonteCarlo.Excel/MonteCarlo.Excel.csproj" />
 </Solution>
