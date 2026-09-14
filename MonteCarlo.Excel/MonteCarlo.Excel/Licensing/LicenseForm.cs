@@ -22,10 +22,10 @@ namespace MonteCarlo.Excel.Licensing
                 "Monte Carlo - License";
 
             Width =
-                520;
+                560;
 
             Height =
-                380;
+                390;
 
             StartPosition =
                 FormStartPosition.CenterScreen;
@@ -51,16 +51,16 @@ namespace MonteCarlo.Excel.Licensing
                         "Monte Carlo for Excel",
 
                     Left =
-                        25,
+                        30,
 
                     Top =
-                        20,
+                        25,
 
                     Width =
-                        430,
+                        470,
 
                     Height =
-                        35,
+                        40,
 
                     Font =
                         new Font(
@@ -80,12 +80,12 @@ namespace MonteCarlo.Excel.Licensing
 
             AddCaption(
                 "License:",
-                80);
+                90);
 
 
             lblLicenseValue =
                 AddValueLabel(
-                    80);
+                    90);
 
 
             // =====================================================
@@ -94,12 +94,12 @@ namespace MonteCarlo.Excel.Licensing
 
             AddCaption(
                 "Status:",
-                115);
+                125);
 
 
             lblStatusValue =
                 AddValueLabel(
-                    115);
+                    125);
 
 
             // =====================================================
@@ -108,12 +108,12 @@ namespace MonteCarlo.Excel.Licensing
 
             AddCaption(
                 "Licensed To:",
-                150);
+                160);
 
 
             lblLicensedToValue =
                 AddValueLabel(
-                    150);
+                    160);
 
 
             // =====================================================
@@ -122,12 +122,12 @@ namespace MonteCarlo.Excel.Licensing
 
             AddCaption(
                 "Expiry:",
-                185);
+                195);
 
 
             lblExpiryValue =
                 AddValueLabel(
-                    185);
+                    195);
 
 
             // =====================================================
@@ -138,16 +138,19 @@ namespace MonteCarlo.Excel.Licensing
                 new Label
                 {
                     Left =
-                        25,
+                        30,
 
                     Top =
-                        230,
+                        245,
 
                     Width =
-                        450,
+                        470,
 
                     Height =
-                        45
+                        40,
+
+                    AutoSize =
+                        false
                 };
 
 
@@ -166,16 +169,19 @@ namespace MonteCarlo.Excel.Licensing
                         "Activate License",
 
                     Left =
-                        155,
+                        175,
 
                     Top =
-                        290,
+                        300,
 
                     Width =
-                        115,
+                        125,
 
                     Height =
-                        32
+                        34,
+
+                    AutoSize =
+                        false
                 };
 
 
@@ -198,16 +204,19 @@ namespace MonteCarlo.Excel.Licensing
                         "Deactivate",
 
                     Left =
-                        280,
+                        310,
 
                     Top =
-                        290,
+                        300,
 
                     Width =
-                        95,
+                        100,
 
                     Height =
-                        32
+                        34,
+
+                    AutoSize =
+                        false
                 };
 
 
@@ -230,16 +239,19 @@ namespace MonteCarlo.Excel.Licensing
                         "Close",
 
                     Left =
-                        385,
+                        420,
 
                     Top =
-                        290,
+                        300,
 
                     Width =
-                        90,
+                        80,
 
                     Height =
-                        32,
+                        34,
+
+                    AutoSize =
+                        false,
 
                     DialogResult =
                         DialogResult.OK
@@ -281,7 +293,7 @@ namespace MonteCarlo.Excel.Licensing
                         caption,
 
                     Left =
-                        25,
+                        30,
 
                     Top =
                         top,
@@ -290,7 +302,7 @@ namespace MonteCarlo.Excel.Licensing
                         120,
 
                     Height =
-                        25,
+                        24,
 
                     Font =
                         new Font(
@@ -316,16 +328,19 @@ namespace MonteCarlo.Excel.Licensing
                 new Label
                 {
                     Left =
-                        150,
+                        155,
 
                     Top =
                         top,
 
                     Width =
-                        320,
+                        345,
 
                     Height =
-                        25
+                        24,
+
+                    AutoSize =
+                        false
                 };
 
 
@@ -398,9 +413,9 @@ namespace MonteCarlo.Excel.Licensing
                     license);
 
 
-            // -----------------------------------------------------
-            // BUTTON STATE
-            // -----------------------------------------------------
+            // =====================================================
+            // BUTTON STATES
+            // =====================================================
 
             if (
                 license.Type ==
@@ -448,7 +463,7 @@ namespace MonteCarlo.Excel.Licensing
 
 
         // =========================================================
-        // ACTIVATE LICENSE
+        // ACTIVATE
         // =========================================================
 
         private void BtnActivate_Click(
