@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Icons\assumption.png" />
+    <None Remove="Icons\clear_model.png" />
+    <None Remove="Icons\forecast.png" />
+    <None Remove="Icons\model_manager.png" />
+    <None Remove="Icons\reload_model.png" />
+    <None Remove="Icons\run_simulation.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Icons\assumption.png" />
+    <EmbeddedResource Include="Icons\clear_model.png" />
+    <EmbeddedResource Include="Icons\forecast.png" />
+    <EmbeddedResource Include="Icons\model_manager.png" />
+    <EmbeddedResource Include="Icons\reload_model.png" />
+    <EmbeddedResource Include="Icons\run_simulation.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ExcelDna.AddIn" Version="1.9.0" />
+    <PackageReference Include="Microsoft.Office.Interop.Excel" Version="16.0.18925.20022" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\MonteCarlo.Core\MonteCarlo.Core.csproj" />
+  </ItemGroup>
+
+</Project>
