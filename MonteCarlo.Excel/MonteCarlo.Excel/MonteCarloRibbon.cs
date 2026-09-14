@@ -276,7 +276,10 @@ namespace MonteCarlo.Excel
                             form.Parameter2,
 
                         Parameter3 =
-                            form.Parameter3
+                            form.Parameter3,
+
+                        Parameter4 =
+                            form.Parameter4
                     });
 
 
@@ -507,13 +510,9 @@ namespace MonteCarlo.Excel
 
                 MessageBox.Show(
                     $"Model loaded from workbook.\n\n" +
-
-                    $"Assumptions: " +
-                    $"{SimulationModel.Assumptions.Count}\n" +
+                    $"Assumptions: {SimulationModel.Assumptions.Count}\n" +
                     $"{assumptionText}\n\n" +
-
-                    $"Forecasts: " +
-                    $"{SimulationModel.Forecasts.Count}\n" +
+                    $"Forecasts: {SimulationModel.Forecasts.Count}\n" +
                     $"{forecastText}",
                     "Monte Carlo",
                     MessageBoxButtons.OK,
@@ -536,16 +535,8 @@ namespace MonteCarlo.Excel
         {
             try
             {
-                // -------------------------------------------------
-                // LOAD MODEL
-                // -------------------------------------------------
-
                 WorkbookPersistence.LoadModel();
 
-
-                // -------------------------------------------------
-                // BASIC VALIDATION
-                // -------------------------------------------------
 
                 if (SimulationModel.Assumptions.Count == 0)
                 {
@@ -571,10 +562,6 @@ namespace MonteCarlo.Excel
                 }
 
 
-                // -------------------------------------------------
-                // SETTINGS
-                // -------------------------------------------------
-
                 using SimulationSettingsForm settingsForm =
                     new SimulationSettingsForm();
 
@@ -596,18 +583,10 @@ namespace MonteCarlo.Excel
                 }
 
 
-                // -------------------------------------------------
-                // RUN THROUGH SERVICE
-                // -------------------------------------------------
-
                 SimulationRunResult simulationResult =
                     SimulationService.Run(
                         trials);
 
-
-                // -------------------------------------------------
-                // RESULTS DASHBOARD
-                // -------------------------------------------------
 
                 using ResultsForm resultsForm =
                     new ResultsForm(
@@ -846,7 +825,7 @@ namespace MonteCarlo.Excel
 
 
         // =========================================================
-        // ERROR HANDLER
+        // ERROR
         // =========================================================
 
         private static void ShowError(

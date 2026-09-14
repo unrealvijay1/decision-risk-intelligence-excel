@@ -12,10 +12,12 @@ namespace MonteCarlo.Excel
         private readonly Label lblParameter1;
         private readonly Label lblParameter2;
         private readonly Label lblParameter3;
+        private readonly Label lblParameter4;
 
         private readonly TextBox txtParameter1;
         private readonly TextBox txtParameter2;
         private readonly TextBox txtParameter3;
+        private readonly TextBox txtParameter4;
 
 
         public string AssumptionName { get; private set; } = "";
@@ -27,6 +29,8 @@ namespace MonteCarlo.Excel
         public double Parameter2 { get; private set; }
 
         public double Parameter3 { get; private set; }
+
+        public double Parameter4 { get; private set; }
 
 
         // =========================================================
@@ -57,10 +61,10 @@ namespace MonteCarlo.Excel
 
 
             Width =
-                460;
+                480;
 
             Height =
-                470;
+                540;
 
             StartPosition =
                 FormStartPosition.CenterScreen;
@@ -92,7 +96,7 @@ namespace MonteCarlo.Excel
                         30,
 
                     Width =
-                        135
+                        140
                 };
 
 
@@ -100,13 +104,13 @@ namespace MonteCarlo.Excel
                 new TextBox
                 {
                     Left =
-                        160,
+                        170,
 
                     Top =
                         25,
 
                     Width =
-                        240
+                        250
                 };
 
 
@@ -134,7 +138,7 @@ namespace MonteCarlo.Excel
                         80,
 
                     Width =
-                        120
+                        140
                 };
 
 
@@ -142,13 +146,13 @@ namespace MonteCarlo.Excel
                 new ComboBox
                 {
                     Left =
-                        160,
+                        170,
 
                     Top =
                         75,
 
                     Width =
-                        240,
+                        250,
 
                     DropDownStyle =
                         ComboBoxStyle.DropDownList
@@ -169,6 +173,9 @@ namespace MonteCarlo.Excel
 
             cmbDistribution.Items.Add(
                 "Lognormal");
+
+            cmbDistribution.Items.Add(
+                "Beta");
 
 
             Controls.Add(
@@ -192,7 +199,7 @@ namespace MonteCarlo.Excel
                         135,
 
                     Width =
-                        130
+                        140
                 };
 
 
@@ -200,13 +207,13 @@ namespace MonteCarlo.Excel
                 new TextBox
                 {
                     Left =
-                        160,
+                        170,
 
                     Top =
                         130,
 
                     Width =
-                        240
+                        250
                 };
 
 
@@ -231,7 +238,7 @@ namespace MonteCarlo.Excel
                         180,
 
                     Width =
-                        130
+                        140
                 };
 
 
@@ -239,13 +246,13 @@ namespace MonteCarlo.Excel
                 new TextBox
                 {
                     Left =
-                        160,
+                        170,
 
                     Top =
                         175,
 
                     Width =
-                        240
+                        250
                 };
 
 
@@ -270,7 +277,7 @@ namespace MonteCarlo.Excel
                         225,
 
                     Width =
-                        130
+                        140
                 };
 
 
@@ -278,13 +285,13 @@ namespace MonteCarlo.Excel
                 new TextBox
                 {
                     Left =
-                        160,
+                        170,
 
                     Top =
                         220,
 
                     Width =
-                        240
+                        250
                 };
 
 
@@ -293,6 +300,45 @@ namespace MonteCarlo.Excel
 
             Controls.Add(
                 txtParameter3);
+
+
+            // =====================================================
+            // PARAMETER 4
+            // =====================================================
+
+            lblParameter4 =
+                new Label
+                {
+                    Left =
+                        20,
+
+                    Top =
+                        270,
+
+                    Width =
+                        140
+                };
+
+
+            txtParameter4 =
+                new TextBox
+                {
+                    Left =
+                        170,
+
+                    Top =
+                        265,
+
+                    Width =
+                        250
+                };
+
+
+            Controls.Add(
+                lblParameter4);
+
+            Controls.Add(
+                txtParameter4);
 
 
             // =====================================================
@@ -306,13 +352,13 @@ namespace MonteCarlo.Excel
                         "Fit from Selected Data",
 
                     Left =
-                        160,
+                        170,
 
                     Top =
-                        275,
+                        325,
 
                     Width =
-                        240,
+                        250,
 
                     Height =
                         32
@@ -338,10 +384,10 @@ namespace MonteCarlo.Excel
                         "OK",
 
                     Left =
-                        235,
+                        255,
 
                     Top =
-                        345,
+                        405,
 
                     Width =
                         75
@@ -355,10 +401,10 @@ namespace MonteCarlo.Excel
                         "Cancel",
 
                     Left =
-                        325,
+                        345,
 
                     Top =
-                        345,
+                        405,
 
                     Width =
                         75
@@ -526,6 +572,9 @@ namespace MonteCarlo.Excel
 
         // =========================================================
         // APPLY FIT RESULT
+        //
+        // Beta fitting is not wired yet. This continues to support
+        // the currently fitted distributions.
         // =========================================================
 
         private void ApplyFittedDistribution(
@@ -550,6 +599,9 @@ namespace MonteCarlo.Excel
                     txtParameter3.Text =
                         "";
 
+                    txtParameter4.Text =
+                        "";
+
                     break;
 
 
@@ -571,6 +623,9 @@ namespace MonteCarlo.Excel
                         fit.Parameter3.ToString(
                             "0.########");
 
+                    txtParameter4.Text =
+                        "";
+
                     break;
 
 
@@ -591,6 +646,9 @@ namespace MonteCarlo.Excel
                     txtParameter3.Text =
                         "";
 
+                    txtParameter4.Text =
+                        "";
+
                     break;
 
 
@@ -609,6 +667,9 @@ namespace MonteCarlo.Excel
                             "0.########");
 
                     txtParameter3.Text =
+                        "";
+
+                    txtParameter4.Text =
                         "";
 
                     break;
@@ -686,6 +747,14 @@ namespace MonteCarlo.Excel
                     break;
 
 
+                case DistributionType.Beta:
+
+                    cmbDistribution.SelectedItem =
+                        "Beta";
+
+                    break;
+
+
                 default:
 
                     cmbDistribution.SelectedItem =
@@ -708,22 +777,14 @@ namespace MonteCarlo.Excel
                     .ToString();
 
 
-            if (
-                assumption.Distribution ==
-                    DistributionType.Pert
-                ||
-                assumption.Distribution ==
-                    DistributionType.Triangular)
-            {
-                txtParameter3.Text =
-                    assumption.Parameter3
-                        .ToString();
-            }
-            else
-            {
-                txtParameter3.Text =
-                    "";
-            }
+            txtParameter3.Text =
+                assumption.Parameter3
+                    .ToString();
+
+
+            txtParameter4.Text =
+                assumption.Parameter4
+                    .ToString();
         }
 
 
@@ -740,6 +801,24 @@ namespace MonteCarlo.Excel
                 ?? "PERT";
 
 
+            // Hide optional fields by default.
+            lblParameter3.Visible =
+                false;
+
+            txtParameter3.Visible =
+                false;
+
+            lblParameter4.Visible =
+                false;
+
+            txtParameter4.Visible =
+                false;
+
+
+            // -----------------------------------------------------
+            // NORMAL
+            // -----------------------------------------------------
+
             if (distribution == "Normal")
             {
                 lblParameter1.Text =
@@ -748,15 +827,13 @@ namespace MonteCarlo.Excel
                 lblParameter2.Text =
                     "Std Deviation";
 
-                lblParameter3.Visible =
-                    false;
-
-                txtParameter3.Visible =
-                    false;
-
                 return;
             }
 
+
+            // -----------------------------------------------------
+            // LOGNORMAL
+            // -----------------------------------------------------
 
             if (distribution == "Lognormal")
             {
@@ -766,15 +843,13 @@ namespace MonteCarlo.Excel
                 lblParameter2.Text =
                     "Log Std Dev";
 
-                lblParameter3.Visible =
-                    false;
-
-                txtParameter3.Visible =
-                    false;
-
                 return;
             }
 
+
+            // -----------------------------------------------------
+            // UNIFORM
+            // -----------------------------------------------------
 
             if (distribution == "Uniform")
             {
@@ -784,15 +859,48 @@ namespace MonteCarlo.Excel
                 lblParameter2.Text =
                     "Maximum";
 
+                return;
+            }
+
+
+            // -----------------------------------------------------
+            // BETA
+            // -----------------------------------------------------
+
+            if (distribution == "Beta")
+            {
+                lblParameter1.Text =
+                    "Minimum";
+
+                lblParameter2.Text =
+                    "Maximum";
+
+                lblParameter3.Text =
+                    "Alpha";
+
+                lblParameter4.Text =
+                    "Beta";
+
+
                 lblParameter3.Visible =
-                    false;
+                    true;
 
                 txtParameter3.Visible =
-                    false;
+                    true;
+
+                lblParameter4.Visible =
+                    true;
+
+                txtParameter4.Visible =
+                    true;
 
                 return;
             }
 
+
+            // -----------------------------------------------------
+            // PERT / TRIANGULAR
+            // -----------------------------------------------------
 
             lblParameter1.Text =
                 "Minimum";
@@ -802,6 +910,7 @@ namespace MonteCarlo.Excel
 
             lblParameter3.Text =
                 "Maximum";
+
 
             lblParameter3.Visible =
                 true;
@@ -841,6 +950,10 @@ namespace MonteCarlo.Excel
                 ?? "PERT";
 
 
+            // -----------------------------------------------------
+            // PARAMETER 1
+            // -----------------------------------------------------
+
             if (!double.TryParse(
                     txtParameter1.Text,
                     out double parameter1))
@@ -851,6 +964,10 @@ namespace MonteCarlo.Excel
                 return;
             }
 
+
+            // -----------------------------------------------------
+            // PARAMETER 2
+            // -----------------------------------------------------
 
             if (!double.TryParse(
                     txtParameter2.Text,
@@ -867,9 +984,13 @@ namespace MonteCarlo.Excel
                 0;
 
 
-            // -----------------------------------------------------
+            double parameter4 =
+                0;
+
+
+            // =====================================================
             // NORMAL
-            // -----------------------------------------------------
+            // =====================================================
 
             if (distribution == "Normal")
             {
@@ -887,9 +1008,9 @@ namespace MonteCarlo.Excel
             }
 
 
-            // -----------------------------------------------------
+            // =====================================================
             // LOGNORMAL
-            // -----------------------------------------------------
+            // =====================================================
 
             else if (distribution == "Lognormal")
             {
@@ -907,9 +1028,9 @@ namespace MonteCarlo.Excel
             }
 
 
-            // -----------------------------------------------------
+            // =====================================================
             // UNIFORM
-            // -----------------------------------------------------
+            // =====================================================
 
             else if (distribution == "Uniform")
             {
@@ -927,9 +1048,69 @@ namespace MonteCarlo.Excel
             }
 
 
-            // -----------------------------------------------------
+            // =====================================================
+            // BETA
+            // =====================================================
+
+            else if (distribution == "Beta")
+            {
+                if (parameter1 >= parameter2)
+                {
+                    MessageBox.Show(
+                        "Minimum must be less than Maximum.");
+
+                    return;
+                }
+
+
+                if (!double.TryParse(
+                        txtParameter3.Text,
+                        out parameter3))
+                {
+                    MessageBox.Show(
+                        "Enter a valid Alpha value.");
+
+                    return;
+                }
+
+
+                if (!double.TryParse(
+                        txtParameter4.Text,
+                        out parameter4))
+                {
+                    MessageBox.Show(
+                        "Enter a valid Beta value.");
+
+                    return;
+                }
+
+
+                if (parameter3 <= 0)
+                {
+                    MessageBox.Show(
+                        "Alpha must be greater than zero.");
+
+                    return;
+                }
+
+
+                if (parameter4 <= 0)
+                {
+                    MessageBox.Show(
+                        "Beta must be greater than zero.");
+
+                    return;
+                }
+
+
+                Distribution =
+                    DistributionType.Beta;
+            }
+
+
+            // =====================================================
             // PERT / TRIANGULAR
-            // -----------------------------------------------------
+            // =====================================================
 
             else
             {
@@ -972,6 +1153,10 @@ namespace MonteCarlo.Excel
             }
 
 
+            // =====================================================
+            // SAVE OUTPUT VALUES
+            // =====================================================
+
             AssumptionName =
                 assumptionName;
 
@@ -986,6 +1171,10 @@ namespace MonteCarlo.Excel
 
             Parameter3 =
                 parameter3;
+
+
+            Parameter4 =
+                parameter4;
 
 
             DialogResult =

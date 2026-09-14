@@ -18,6 +18,7 @@ namespace MonteCarlo.Excel
             dynamic excelApp =
                 ExcelDnaUtil.Application;
 
+
             dynamic workbook =
                 excelApp.ActiveWorkbook;
 
@@ -34,7 +35,6 @@ namespace MonteCarlo.Excel
                     workbook);
 
 
-            // Clear previous configuration.
             configSheet.Cells.Clear();
 
 
@@ -64,6 +64,9 @@ namespace MonteCarlo.Excel
                 "Parameter3";
 
             configSheet.Cells[1, 8].Value2 =
+                "Parameter4";
+
+            configSheet.Cells[1, 9].Value2 =
                 "Name";
 
 
@@ -126,6 +129,12 @@ namespace MonteCarlo.Excel
                 configSheet.Cells[
                     row,
                     8].Value2 =
+                    assumption.Parameter4;
+
+
+                configSheet.Cells[
+                    row,
+                    9].Value2 =
                     assumption.Name;
 
 
@@ -186,6 +195,12 @@ namespace MonteCarlo.Excel
                 configSheet.Cells[
                     row,
                     8].Value2 =
+                    "";
+
+
+                configSheet.Cells[
+                    row,
+                    9].Value2 =
                     forecast.Name;
 
 
@@ -211,12 +226,11 @@ namespace MonteCarlo.Excel
             dynamic excelApp =
                 ExcelDnaUtil.Application;
 
+
             dynamic workbook =
                 excelApp.ActiveWorkbook;
 
 
-            // Important:
-            // Always clear current in-memory state first.
             SimulationModel.Clear();
 
 
@@ -235,6 +249,11 @@ namespace MonteCarlo.Excel
             {
                 return;
             }
+
+
+            bool newLayout =
+                IsNewLayout(
+                    configSheet);
 
 
             int row =
@@ -269,7 +288,8 @@ namespace MonteCarlo.Excel
                 {
                     LoadAssumption(
                         configSheet,
-                        row);
+                        row,
+                        newLayout);
                 }
 
 
@@ -281,12 +301,56 @@ namespace MonteCarlo.Excel
                 {
                     LoadForecast(
                         configSheet,
-                        row);
+                        row,
+                        newLayout);
                 }
 
 
                 row++;
             }
+        }
+
+
+        // =========================================================
+        // DETECT CONFIG VERSION
+        //
+        // OLD:
+        // 8 = Name
+        //
+        // NEW:
+        // 8 = Parameter4
+        // 9 = Name
+        // =========================================================
+
+        private static bool IsNewLayout(
+            dynamic configSheet)
+        {
+            string column8Header =
+                Convert.ToString(
+                    configSheet.Cells[
+                        1,
+                        8].Value2)
+                ?? "";
+
+
+            string column9Header =
+                Convert.ToString(
+                    configSheet.Cells[
+                        1,
+                        9].Value2)
+                ?? "";
+
+
+            return
+                string.Equals(
+                    column8Header,
+                    "Parameter4",
+                    StringComparison.OrdinalIgnoreCase)
+                ||
+                string.Equals(
+                    column9Header,
+                    "Name",
+                    StringComparison.OrdinalIgnoreCase);
         }
 
 
@@ -298,6 +362,7 @@ namespace MonteCarlo.Excel
         {
             dynamic excelApp =
                 ExcelDnaUtil.Application;
+
 
             dynamic workbook =
                 excelApp.ActiveWorkbook;
@@ -349,7 +414,8 @@ namespace MonteCarlo.Excel
 
         private static void LoadAssumption(
             dynamic configSheet,
-            int row)
+            int row,
+            bool newLayout)
         {
             string sheetName =
                 Convert.ToString(
@@ -396,12 +462,48 @@ namespace MonteCarlo.Excel
                         7].Value2);
 
 
-            string name =
-                Convert.ToString(
-                    configSheet.Cells[
-                        row,
-                        8].Value2)
-                ?? "";
+            double parameter4;
+
+
+            string name;
+
+
+            if (newLayout)
+            {
+                parameter4 =
+                    GetDoubleValue(
+                        configSheet.Cells[
+                            row,
+                            8].Value2);
+
+
+                name =
+                    Convert.ToString(
+                        configSheet.Cells[
+                            row,
+                            9].Value2)
+                    ?? "";
+            }
+            else
+            {
+                // ---------------------------------------------
+                // OLD WORKBOOK FORMAT
+                //
+                // Column 8 contained Name.
+                // There was no Parameter4.
+                // ---------------------------------------------
+
+                parameter4 =
+                    0;
+
+
+                name =
+                    Convert.ToString(
+                        configSheet.Cells[
+                            row,
+                            8].Value2)
+                    ?? "";
+            }
 
 
             if (
@@ -424,9 +526,8 @@ namespace MonteCarlo.Excel
             }
 
 
-            // Backward compatibility:
-            // older workbooks may have no assumption name.
-            if (string.IsNullOrWhiteSpace(name))
+            if (string.IsNullOrWhiteSpace(
+                    name))
             {
                 name =
                     $"{sheetName}!{cellAddress}";
@@ -455,7 +556,10 @@ namespace MonteCarlo.Excel
                         parameter2,
 
                     Parameter3 =
-                        parameter3
+                        parameter3,
+
+                    Parameter4 =
+                        parameter4
                 });
         }
 
@@ -466,7 +570,8 @@ namespace MonteCarlo.Excel
 
         private static void LoadForecast(
             dynamic configSheet,
-            int row)
+            int row,
+            bool newLayout)
         {
             string sheetName =
                 Convert.ToString(
@@ -484,12 +589,27 @@ namespace MonteCarlo.Excel
                 ?? "";
 
 
-            string name =
-                Convert.ToString(
-                    configSheet.Cells[
-                        row,
-                        8].Value2)
-                ?? "";
+            string name;
+
+
+            if (newLayout)
+            {
+                name =
+                    Convert.ToString(
+                        configSheet.Cells[
+                            row,
+                            9].Value2)
+                    ?? "";
+            }
+            else
+            {
+                name =
+                    Convert.ToString(
+                        configSheet.Cells[
+                            row,
+                            8].Value2)
+                    ?? "";
+            }
 
 
             if (
@@ -503,7 +623,8 @@ namespace MonteCarlo.Excel
             }
 
 
-            if (string.IsNullOrWhiteSpace(name))
+            if (string.IsNullOrWhiteSpace(
+                    name))
             {
                 name =
                     $"{sheetName}!{cellAddress}";
@@ -539,7 +660,8 @@ namespace MonteCarlo.Excel
 
             if (existingSheet != null)
             {
-                return existingSheet;
+                return
+                    existingSheet;
             }
 
 
@@ -551,7 +673,8 @@ namespace MonteCarlo.Excel
                 ConfigSheetName;
 
 
-            return newSheet;
+            return
+                newSheet;
         }
 
 

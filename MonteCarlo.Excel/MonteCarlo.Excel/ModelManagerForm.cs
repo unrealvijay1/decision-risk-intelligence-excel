@@ -15,7 +15,7 @@ namespace MonteCarlo.Excel
                 "Monte Carlo Model Manager";
 
             Width =
-                1100;
+                1150;
 
             Height =
                 540;
@@ -75,7 +75,7 @@ namespace MonteCarlo.Excel
                         55,
 
                     Width =
-                        1040,
+                        1090,
 
                     Height =
                         370,
@@ -119,7 +119,7 @@ namespace MonteCarlo.Excel
 
             listView.Columns.Add(
                 "Parameters",
-                400);
+                460);
 
 
             Controls.Add(
@@ -205,7 +205,7 @@ namespace MonteCarlo.Excel
                         "Close",
 
                     Left =
-                        960,
+                        1010,
 
                     Top =
                         445,
@@ -433,6 +433,10 @@ namespace MonteCarlo.Excel
             switch (
                 assumption.Distribution)
             {
+                // -------------------------------------------------
+                // NORMAL
+                // -------------------------------------------------
+
                 case DistributionType.Normal:
 
                     return
@@ -440,13 +444,21 @@ namespace MonteCarlo.Excel
                         $"SD={assumption.Parameter2:N2}";
 
 
+                // -------------------------------------------------
+                // TRIANGULAR
+                // -------------------------------------------------
+
                 case DistributionType.Triangular:
 
                     return
                         $"Min={assumption.Parameter1:N2}, " +
-                        $"Most Likely={assumption.Parameter2:N2}, " +
+                        $"Mode={assumption.Parameter2:N2}, " +
                         $"Max={assumption.Parameter3:N2}";
 
+
+                // -------------------------------------------------
+                // PERT
+                // -------------------------------------------------
 
                 case DistributionType.Pert:
 
@@ -456,12 +468,20 @@ namespace MonteCarlo.Excel
                         $"Max={assumption.Parameter3:N2}";
 
 
+                // -------------------------------------------------
+                // UNIFORM
+                // -------------------------------------------------
+
                 case DistributionType.Uniform:
 
                     return
                         $"Min={assumption.Parameter1:N2}, " +
                         $"Max={assumption.Parameter2:N2}";
 
+
+                // -------------------------------------------------
+                // LOGNORMAL
+                // -------------------------------------------------
 
                 case DistributionType.Lognormal:
                     {
@@ -514,9 +534,102 @@ namespace MonteCarlo.Excel
                         return
                             $"Mean={mean:N2}, " +
                             $"Median={median:N2}, " +
-                            $"SD={sd:N2} " +
-                            $"(Log μ={logMean:N4}, " +
-                            $"σ={logSd:N4})";
+                            $"SD={sd:N2}, " +
+                            $"Log μ={logMean:N4}, " +
+                            $"σ={logSd:N4}";
+                    }
+
+
+                // -------------------------------------------------
+                // BETA
+                // -------------------------------------------------
+
+                case DistributionType.Beta:
+                    {
+                        double minimum =
+                            assumption.Parameter1;
+
+
+                        double maximum =
+                            assumption.Parameter2;
+
+
+                        double alpha =
+                            assumption.Parameter3;
+
+
+                        double beta =
+                            assumption.Parameter4;
+
+
+                        if (
+                            alpha <= 0
+                            ||
+                            beta <= 0
+                            ||
+                            maximum <= minimum)
+                        {
+                            return
+                                $"Min={minimum:N2}, " +
+                                $"Max={maximum:N2}, " +
+                                $"Alpha={alpha:N3}, " +
+                                $"Beta={beta:N3}";
+                        }
+
+
+                        double mean =
+                            minimum
+                            +
+                            (
+                                maximum -
+                                minimum
+                            )
+                            *
+                            alpha
+                            /
+                            (
+                                alpha +
+                                beta
+                            );
+
+
+                        double variance =
+                            Math.Pow(
+                                maximum -
+                                minimum,
+                                2)
+                            *
+                            (
+                                alpha *
+                                beta
+                            )
+                            /
+                            (
+                                Math.Pow(
+                                    alpha +
+                                    beta,
+                                    2)
+                                *
+                                (
+                                    alpha +
+                                    beta +
+                                    1.0
+                                )
+                            );
+
+
+                        double sd =
+                            Math.Sqrt(
+                                variance);
+
+
+                        return
+                            $"Min={minimum:N2}, " +
+                            $"Max={maximum:N2}, " +
+                            $"Alpha={alpha:N3}, " +
+                            $"Beta={beta:N3}, " +
+                            $"Mean≈{mean:N2}, " +
+                            $"SD≈{sd:N2}";
                     }
 
 
@@ -685,6 +798,10 @@ namespace MonteCarlo.Excel
                     form.Parameter3;
 
 
+                assumption.Parameter4 =
+                    form.Parameter4;
+
+
                 WorkbookPersistence
                     .SaveModel();
 
@@ -731,7 +848,7 @@ namespace MonteCarlo.Excel
 
 
                 if (string.IsNullOrWhiteSpace(
-                    newName))
+                        newName))
                 {
                     newName =
                         $"{forecast.SheetName}!" +
@@ -1020,8 +1137,7 @@ namespace MonteCarlo.Excel
             if (dialog.ShowDialog()
                 != DialogResult.OK)
             {
-                return
-                    null;
+                return null;
             }
 
 

@@ -8,7 +8,8 @@ namespace MonteCarlo.Core
         Triangular,
         Pert,
         Uniform,
-        Lognormal
+        Lognormal,
+        Beta
     }
 
 
@@ -22,7 +23,8 @@ namespace MonteCarlo.Core
             DistributionKind distribution,
             double parameter1,
             double parameter2,
-            double parameter3 = 0)
+            double parameter3 = 0,
+            double parameter4 = 0)
         {
             switch (distribution)
             {
@@ -66,6 +68,16 @@ namespace MonteCarlo.Core
                         LognormalDistribution.Sample(
                             parameter1,
                             parameter2);
+
+
+                case DistributionKind.Beta:
+
+                    return
+                        BetaDistribution.Sample(
+                            parameter1,
+                            parameter2,
+                            parameter3,
+                            parameter4);
 
 
                 default:

@@ -2,61 +2,99 @@
 
 namespace MonteCarlo.Excel
 {
+    // =============================================================
+    // DISTRIBUTION TYPES USED BY EXCEL MODEL
+    // =============================================================
+
     public enum DistributionType
     {
         Normal,
         Triangular,
         Pert,
         Uniform,
-        Lognormal
+        Lognormal,
+        Beta
     }
 
 
     // =============================================================
-    // ASSUMPTION
+    // ASSUMPTION DEFINITION
     // =============================================================
 
     public class AssumptionDefinition
     {
-        // Friendly business name.
+        // Friendly name shown in Model Manager,
+        // sensitivity analysis and reports.
         //
         // Examples:
-        // Daily Rate
-        // Team Size
         // Duration
-        // Demand
-        public string Name { get; set; } = "";
+        // Team Size
+        // Daily Rate
+        // Productivity
+        public string Name { get; set; } =
+            "";
 
 
-        public string SheetName { get; set; } = "";
+        // Excel worksheet containing the assumption cell.
+        public string SheetName { get; set; } =
+            "";
 
 
-        public string CellAddress { get; set; } = "";
+        // Excel address of the assumption cell.
+        //
+        // Example:
+        // B3
+        public string CellAddress { get; set; } =
+            "";
 
 
         public DistributionType Distribution { get; set; }
 
 
-        // ---------------------------------------------------------
-        // Parameter meanings
+        // =========================================================
+        // DISTRIBUTION PARAMETERS
         //
-        // Normal
+        // NORMAL
+        //
         // Parameter1 = Mean
         // Parameter2 = Standard Deviation
         //
-        // Lognormal
+        //
+        // LOGNORMAL
+        //
         // Parameter1 = Log Mean
         // Parameter2 = Log Standard Deviation
         //
-        // Uniform
+        //
+        // UNIFORM
+        //
         // Parameter1 = Minimum
         // Parameter2 = Maximum
         //
-        // Triangular / PERT
+        //
+        // TRIANGULAR
+        //
+        // Parameter1 = Minimum
+        // Parameter2 = Most Likely / Mode
+        // Parameter3 = Maximum
+        //
+        //
+        // PERT
+        //
         // Parameter1 = Minimum
         // Parameter2 = Most Likely
         // Parameter3 = Maximum
-        // ---------------------------------------------------------
+        //
+        //
+        // BETA
+        //
+        // Parameter1 = Minimum
+        // Parameter2 = Maximum
+        // Parameter3 = Alpha
+        // Parameter4 = Beta
+        //
+        // =========================================================
+
 
         public double Parameter1 { get; set; }
 
@@ -65,22 +103,34 @@ namespace MonteCarlo.Excel
 
 
         public double Parameter3 { get; set; }
+
+
+        public double Parameter4 { get; set; }
     }
 
 
     // =============================================================
-    // FORECAST
+    // FORECAST DEFINITION
     // =============================================================
 
     public class ForecastDefinition
     {
-        public string Name { get; set; } = "";
+        // Friendly forecast name.
+        //
+        // Examples:
+        // Total Cost
+        // Completion Date
+        // Revenue
+        public string Name { get; set; } =
+            "";
 
 
-        public string SheetName { get; set; } = "";
+        public string SheetName { get; set; } =
+            "";
 
 
-        public string CellAddress { get; set; } = "";
+        public string CellAddress { get; set; } =
+            "";
     }
 
 
@@ -90,18 +140,18 @@ namespace MonteCarlo.Excel
 
     public static class SimulationModel
     {
-        // ---------------------------------------------------------
+        // =========================================================
         // ASSUMPTIONS
-        // ---------------------------------------------------------
+        // =========================================================
 
         public static List<AssumptionDefinition> Assumptions { get; }
             =
             new List<AssumptionDefinition>();
 
 
-        // ---------------------------------------------------------
+        // =========================================================
         // FORECASTS
-        // ---------------------------------------------------------
+        // =========================================================
 
         public static List<ForecastDefinition> Forecasts { get; }
             =
@@ -109,7 +159,7 @@ namespace MonteCarlo.Excel
 
 
         // =========================================================
-        // CLEAR EVERYTHING
+        // CLEAR COMPLETE MODEL
         // =========================================================
 
         public static void Clear()
@@ -121,7 +171,7 @@ namespace MonteCarlo.Excel
 
 
         // =========================================================
-        // CLEAR ASSUMPTIONS
+        // CLEAR ASSUMPTIONS ONLY
         // =========================================================
 
         public static void ClearAssumptions()
@@ -131,7 +181,7 @@ namespace MonteCarlo.Excel
 
 
         // =========================================================
-        // CLEAR FORECASTS
+        // CLEAR FORECASTS ONLY
         // =========================================================
 
         public static void ClearForecasts()
@@ -163,12 +213,14 @@ namespace MonteCarlo.Excel
                         cellAddress,
                         System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return assumption;
+                    return
+                        assumption;
                 }
             }
 
 
-            return null;
+            return
+                null;
         }
 
 
@@ -195,12 +247,14 @@ namespace MonteCarlo.Excel
                         cellAddress,
                         System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return forecast;
+                    return
+                        forecast;
                 }
             }
 
 
-            return null;
+            return
+                null;
         }
     }
 }

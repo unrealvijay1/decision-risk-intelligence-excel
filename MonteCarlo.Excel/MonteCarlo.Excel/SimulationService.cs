@@ -341,7 +341,7 @@ namespace MonteCarlo.Excel
                 }
 
 
-                // Recalculate original model state.
+                // Recalculate original workbook state.
                 excelApp.Calculate();
 
 
@@ -403,9 +403,6 @@ namespace MonteCarlo.Excel
 
         // =========================================================
         // DISTRIBUTION SAMPLING
-        //
-        // SimulationService now delegates the actual statistical
-        // sampling to MonteCarlo.Core.
         // =========================================================
 
         private static double GenerateSample(
@@ -439,6 +436,11 @@ namespace MonteCarlo.Excel
                             .DistributionKind
                             .Lognormal,
 
+                    DistributionType.Beta =>
+                        MonteCarlo.Core
+                            .DistributionKind
+                            .Beta,
+
                     _ =>
                         throw new InvalidOperationException(
                             $"Unsupported distribution: " +
@@ -453,7 +455,8 @@ namespace MonteCarlo.Excel
                         distribution,
                         assumption.Parameter1,
                         assumption.Parameter2,
-                        assumption.Parameter3);
+                        assumption.Parameter3,
+                        assumption.Parameter4);
         }
     }
 }

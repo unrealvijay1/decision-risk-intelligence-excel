@@ -73,7 +73,7 @@ namespace MonteCarlo.Excel
 
                 dynamic titleRange =
                     reportSheet.Range[
-                        "A1:H1"];
+                        "A1:I1"];
 
 
                 titleRange.Merge();
@@ -229,6 +229,12 @@ namespace MonteCarlo.Excel
                 reportSheet.Cells[
                     currentRow,
                     8].Value2 =
+                    "Parameter 4";
+
+
+                reportSheet.Cells[
+                    currentRow,
+                    9].Value2 =
                     "Interpretation";
 
 
@@ -239,7 +245,7 @@ namespace MonteCarlo.Excel
                             1],
                         reportSheet.Cells[
                             currentRow,
-                            8]];
+                            9]];
 
 
                 assumptionHeader.Font.Bold =
@@ -301,6 +307,12 @@ namespace MonteCarlo.Excel
                     reportSheet.Cells[
                         currentRow,
                         8].Value2 =
+                        assumption.Parameter4;
+
+
+                    reportSheet.Cells[
+                        currentRow,
+                        9].Value2 =
                         GetAssumptionDescription(
                             assumption);
 
@@ -553,22 +565,29 @@ namespace MonteCarlo.Excel
                 usedRange.Columns.AutoFit();
 
 
-                // Cap very wide columns.
+                // -------------------------------------------------
+                // CAP INTERPRETATION COLUMN WIDTH
+                // -------------------------------------------------
+
                 if (
                     reportSheet.Columns[
-                        8].ColumnWidth >
-                    55)
+                        9].ColumnWidth >
+                    60)
                 {
                     reportSheet.Columns[
-                        8].ColumnWidth =
-                        55;
+                        9].ColumnWidth =
+                        60;
                 }
 
 
                 reportSheet.Columns[
-                    8].WrapText =
+                    9].WrapText =
                     true;
 
+
+                // -------------------------------------------------
+                // MINIMUM WIDTHS
+                // -------------------------------------------------
 
                 reportSheet.Columns[
                     1].ColumnWidth =
@@ -586,7 +605,18 @@ namespace MonteCarlo.Excel
                             2].ColumnWidth);
 
 
-                // Generic number formatting.
+                reportSheet.Columns[
+                    4].ColumnWidth =
+                    Math.Max(
+                        14,
+                        reportSheet.Columns[
+                            4].ColumnWidth);
+
+
+                // -------------------------------------------------
+                // NUMBER FORMATTING
+                // -------------------------------------------------
+
                 reportSheet.Columns[
                     5].NumberFormat =
                     "#,##0.00";
@@ -602,7 +632,15 @@ namespace MonteCarlo.Excel
                     "#,##0.00";
 
 
-                // Activate and freeze top row.
+                reportSheet.Columns[
+                    8].NumberFormat =
+                    "#,##0.00";
+
+
+                // =================================================
+                // FREEZE TOP ROW
+                // =================================================
+
                 reportSheet.Activate();
 
 
@@ -617,6 +655,10 @@ namespace MonteCarlo.Excel
                 reportSheet.Range[
                     "A1"].Select();
 
+
+                // =================================================
+                // COMPLETE
+                // =================================================
 
                 MessageBox.Show(
                     $"Simulation report created successfully.\n\n" +
@@ -713,12 +755,20 @@ namespace MonteCarlo.Excel
             switch (
                 assumption.Distribution)
             {
+                // -------------------------------------------------
+                // NORMAL
+                // -------------------------------------------------
+
                 case DistributionType.Normal:
 
                     return
                         $"Mean={assumption.Parameter1:N2}, " +
                         $"SD={assumption.Parameter2:N2}";
 
+
+                // -------------------------------------------------
+                // PERT
+                // -------------------------------------------------
 
                 case DistributionType.Pert:
 
@@ -728,6 +778,10 @@ namespace MonteCarlo.Excel
                         $"Max={assumption.Parameter3:N2}";
 
 
+                // -------------------------------------------------
+                // TRIANGULAR
+                // -------------------------------------------------
+
                 case DistributionType.Triangular:
 
                     return
@@ -736,12 +790,20 @@ namespace MonteCarlo.Excel
                         $"Max={assumption.Parameter3:N2}";
 
 
+                // -------------------------------------------------
+                // UNIFORM
+                // -------------------------------------------------
+
                 case DistributionType.Uniform:
 
                     return
                         $"Min={assumption.Parameter1:N2}, " +
                         $"Max={assumption.Parameter2:N2}";
 
+
+                // -------------------------------------------------
+                // LOGNORMAL
+                // -------------------------------------------------
 
                 case DistributionType.Lognormal:
                     {
@@ -794,6 +856,99 @@ namespace MonteCarlo.Excel
                             $"SD≈{sd:N2}, " +
                             $"Log μ={mu:N4}, " +
                             $"Log σ={sigma:N4}";
+                    }
+
+
+                // -------------------------------------------------
+                // BETA
+                // -------------------------------------------------
+
+                case DistributionType.Beta:
+                    {
+                        double minimum =
+                            assumption.Parameter1;
+
+
+                        double maximum =
+                            assumption.Parameter2;
+
+
+                        double alpha =
+                            assumption.Parameter3;
+
+
+                        double beta =
+                            assumption.Parameter4;
+
+
+                        if (
+                            maximum <= minimum
+                            ||
+                            alpha <= 0
+                            ||
+                            beta <= 0)
+                        {
+                            return
+                                $"Min={minimum:N2}, " +
+                                $"Max={maximum:N2}, " +
+                                $"Alpha={alpha:N3}, " +
+                                $"Beta={beta:N3}";
+                        }
+
+
+                        double mean =
+                            minimum
+                            +
+                            (
+                                maximum -
+                                minimum
+                            )
+                            *
+                            alpha
+                            /
+                            (
+                                alpha +
+                                beta
+                            );
+
+
+                        double variance =
+                            Math.Pow(
+                                maximum -
+                                minimum,
+                                2)
+                            *
+                            (
+                                alpha *
+                                beta
+                            )
+                            /
+                            (
+                                Math.Pow(
+                                    alpha +
+                                    beta,
+                                    2)
+                                *
+                                (
+                                    alpha +
+                                    beta +
+                                    1.0
+                                )
+                            );
+
+
+                        double sd =
+                            Math.Sqrt(
+                                variance);
+
+
+                        return
+                            $"Min={minimum:N2}, " +
+                            $"Max={maximum:N2}, " +
+                            $"Alpha={alpha:N3}, " +
+                            $"Beta={beta:N3}, " +
+                            $"Mean≈{mean:N2}, " +
+                            $"SD≈{sd:N2}";
                     }
 
 
