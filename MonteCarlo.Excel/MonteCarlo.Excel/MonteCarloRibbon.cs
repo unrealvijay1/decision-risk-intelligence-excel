@@ -9,6 +9,8 @@ using System.Windows.Forms;
 using ExcelDna.Integration;
 using ExcelDna.Integration.CustomUI;
 
+using MonteCarlo.Excel.Licensing;
+
 namespace MonteCarlo.Excel
 {
     [ComVisible(true)]
@@ -97,6 +99,21 @@ namespace MonteCarlo.Excel
               size='normal'
               getImage='GetRibbonImage'
               onAction='OnClearModel'/>
+
+        </group>
+
+
+        <group id='ProductGroup'
+               label='Product'>
+
+          <button
+              id='LicenseButton'
+              label='License'
+              screentip='View license information'
+              supertip='View your Monte Carlo license type, activation status and expiry information.'
+              size='large'
+              imageMso='FileProperties'
+              onAction='OnLicense'/>
 
         </group>
 
@@ -359,7 +376,8 @@ namespace MonteCarlo.Excel
 
 
                 string defaultName =
-                    existingForecast != null &&
+                    existingForecast != null
+                    &&
                     !string.IsNullOrWhiteSpace(
                         existingForecast.Name)
                         ? existingForecast.Name
@@ -527,6 +545,29 @@ namespace MonteCarlo.Excel
 
 
         // =========================================================
+        // LICENSE
+        // =========================================================
+
+        public void OnLicense(
+            IRibbonControl control)
+        {
+            try
+            {
+                using LicenseForm form =
+                    new LicenseForm();
+
+
+                form.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                ShowError(
+                    ex);
+            }
+        }
+
+
+        // =========================================================
         // RUN SIMULATION
         // =========================================================
 
@@ -535,6 +576,40 @@ namespace MonteCarlo.Excel
         {
             try
             {
+                // =================================================
+                // LICENSE CHECK
+                // =================================================
+
+                LicenseInfo license =
+                    LicenseService.GetCurrentLicense();
+
+
+                if (!license.IsValid)
+                {
+                    MessageBox.Show(
+                        "Your Monte Carlo license is not active.\n\n" +
+                        "Please activate or renew your license " +
+                        "to run simulations.",
+                        "Monte Carlo License",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+
+                    using LicenseForm licenseForm =
+                        new LicenseForm();
+
+
+                    licenseForm.ShowDialog();
+
+
+                    return;
+                }
+
+
+                // =================================================
+                // LOAD MODEL
+                // =================================================
+
                 WorkbookPersistence.LoadModel();
 
 
@@ -562,6 +637,10 @@ namespace MonteCarlo.Excel
                 }
 
 
+                // =================================================
+                // SETTINGS
+                // =================================================
+
                 using SimulationSettingsForm settingsForm =
                     new SimulationSettingsForm();
 
@@ -583,10 +662,18 @@ namespace MonteCarlo.Excel
                 }
 
 
+                // =================================================
+                // RUN SIMULATION
+                // =================================================
+
                 SimulationRunResult simulationResult =
                     SimulationService.Run(
                         trials);
 
+
+                // =================================================
+                // RESULTS
+                // =================================================
 
                 using ResultsForm resultsForm =
                     new ResultsForm(
