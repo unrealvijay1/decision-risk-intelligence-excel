@@ -1,5 +1,9 @@
 ﻿using System;
 using System.Windows.Forms;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Globalization;
+using System.Linq;
 
 namespace MonteCarlo.Excel
 {
@@ -18,6 +22,8 @@ namespace MonteCarlo.Excel
         private readonly TextBox txtParameter2;
         private readonly TextBox txtParameter3;
         private readonly TextBox txtParameter4;
+        private readonly Panel previewPanel;
+        private MonteCarlo.Core.DistributionPreviewResult? preview;
 
 
         public string AssumptionName { get; private set; } = "";
@@ -61,16 +67,19 @@ namespace MonteCarlo.Excel
 
 
             Width =
-                480;
+                540;
 
             Height =
-                540;
+                700;
 
             StartPosition =
                 FormStartPosition.CenterScreen;
 
             FormBorderStyle =
-                FormBorderStyle.FixedDialog;
+                FormBorderStyle.Sizable;
+
+            MinimumSize = new Size(500, 610);
+            AutoScaleMode = AutoScaleMode.Dpi;
 
             MaximizeBox =
                 false;
@@ -372,6 +381,30 @@ namespace MonteCarlo.Excel
             Controls.Add(
                 btnFitFromData);
 
+            Label previewHeading = new Label
+            {
+                Text = "Distribution Preview",
+                Left = 20,
+                Top = 375,
+                Width = 300,
+                Font = new Font(Font, FontStyle.Bold)
+            };
+            Controls.Add(previewHeading);
+
+            previewPanel = new PreviewPanel
+            {
+                Left = 20,
+                Top = 400,
+                Width = ClientSize.Width - 40,
+                Height = ClientSize.Height - 485,
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom |
+                         AnchorStyles.Left | AnchorStyles.Right,
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.White
+            };
+            previewPanel.Paint += PreviewPanel_Paint;
+            Controls.Add(previewPanel);
+
 
             // =====================================================
             // BUTTONS
@@ -387,10 +420,11 @@ namespace MonteCarlo.Excel
                         255,
 
                     Top =
-                        405,
+                        ClientSize.Height - 60,
 
                     Width =
-                        75
+                        75,
+                    Anchor = AnchorStyles.Bottom | AnchorStyles.Right
                 };
 
 
@@ -404,10 +438,11 @@ namespace MonteCarlo.Excel
                         345,
 
                     Top =
-                        405,
+                        ClientSize.Height - 60,
 
                     Width =
-                        75
+                        75,
+                    Anchor = AnchorStyles.Bottom | AnchorStyles.Right
                 };
 
 
@@ -415,7 +450,13 @@ namespace MonteCarlo.Excel
                 (_, _) =>
                 {
                     UpdateParameterLabels();
+                    UpdatePreview();
                 };
+
+            txtParameter1.TextChanged += (_, _) => UpdatePreview();
+            txtParameter2.TextChanged += (_, _) => UpdatePreview();
+            txtParameter3.TextChanged += (_, _) => UpdatePreview();
+            txtParameter4.TextChanged += (_, _) => UpdatePreview();
 
 
             btnOK.Click +=
@@ -467,8 +508,117 @@ namespace MonteCarlo.Excel
                 LoadExistingAssumption(
                     existingAssumption);
             }
+
+            UpdatePreview();
         }
 
+
+        private void UpdatePreview()
+        {
+            if (previewPanel == null) return;
+
+            string selected = cmbDistribution.SelectedItem?.ToString() ?? "PERT";
+            int count = selected == "Beta" ? 4 :
+                selected is "PERT" or "Triangular" ? 3 : 2;
+            TextBox[] fields = { txtParameter1, txtParameter2, txtParameter3, txtParameter4 };
+            double[] values = new double[4];
+            for (int i = 0; i < count; i++)
+            {
+                if (!double.TryParse(fields[i].Text, NumberStyles.Float |
+                    NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out values[i]))
+                {
+                    preview = new MonteCarlo.Core.DistributionPreviewResult
+                    {
+                        ValidationMessage = $"Enter a valid {ParameterName(selected, i)}."
+                    };
+                    previewPanel.Invalidate();
+                    return;
+                }
+            }
+
+            MonteCarlo.Core.DistributionKind kind = selected switch
+            {
+                "Normal" => MonteCarlo.Core.DistributionKind.Normal,
+                "Triangular" => MonteCarlo.Core.DistributionKind.Triangular,
+                "Uniform" => MonteCarlo.Core.DistributionKind.Uniform,
+                "Lognormal" => MonteCarlo.Core.DistributionKind.Lognormal,
+                "Beta" => MonteCarlo.Core.DistributionKind.Beta,
+                _ => MonteCarlo.Core.DistributionKind.Pert
+            };
+            preview = MonteCarlo.Core.DistributionPreview.Generate(
+                kind, values[0], values[1], values[2], values[3]);
+            previewPanel.Invalidate();
+        }
+
+        private static string ParameterName(string distribution, int index) =>
+            distribution switch
+            {
+                "Normal" => index == 0 ? "mean" : "standard deviation",
+                "Lognormal" => index == 0 ? "log mean" : "log standard deviation",
+                "Beta" => new[] { "minimum", "maximum", "alpha", "beta" }[index],
+                "Triangular" or "PERT" => new[] { "minimum", "most likely value", "maximum" }[index],
+                _ => index == 0 ? "minimum" : "maximum"
+            };
+
+        private void PreviewPanel_Paint(object? sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle bounds = previewPanel.ClientRectangle;
+            if (preview == null || !preview.IsValid)
+            {
+                string message = preview?.ValidationMessage ?? "Enter distribution parameters.";
+                TextRenderer.DrawText(g, message, Font,
+                    new Rectangle(12, 12, Math.Max(1, bounds.Width - 24),
+                        Math.Max(1, bounds.Height - 24)), Color.DarkRed,
+                    TextFormatFlags.WordBreak);
+                return;
+            }
+
+            float left = 54, right = bounds.Width - 18;
+            float top = 14, bottom = bounds.Height - 49;
+            if (right <= left || bottom <= top) return;
+
+            using var axisPen = new Pen(Color.Gray, 1);
+            g.DrawLine(axisPen, left, bottom, right, bottom);
+            g.DrawLine(axisPen, left, top, left, bottom);
+
+            double maxDensity = preview.Points.Max(p => p.Density);
+            if (maxDensity <= 0) return;
+
+            // Visual clipping affects only drawing, never Core density values.
+            double[] sorted = preview.Points.Select(p => p.Density).OrderBy(v => v).ToArray();
+            double visualMax = sorted[(int)(0.99 * (sorted.Length - 1))];
+            if (visualMax <= 0) visualMax = maxDensity;
+            var curve = new PointF[preview.Points.Count];
+            for (int i = 0; i < curve.Length; i++)
+            {
+                var point = preview.Points[i];
+                double fraction = (point.X - preview.MinimumX) /
+                    (preview.MaximumX - preview.MinimumX);
+                curve[i] = new PointF(
+                    left + (float)(fraction * (right - left)),
+                    bottom - (float)(Math.Min(point.Density, visualMax) /
+                        visualMax * (bottom - top)));
+            }
+            using var curvePen = new Pen(Color.SteelBlue, 2.2f);
+            g.DrawLines(curvePen, curve);
+
+            string low = preview.MinimumX.ToString("G4", CultureInfo.CurrentCulture);
+            string high = preview.MaximumX.ToString("G4", CultureInfo.CurrentCulture);
+            TextRenderer.DrawText(g, low, Font,
+                new Point((int)left, (int)bottom + 5), Color.DimGray);
+            var highSize = TextRenderer.MeasureText(high, Font);
+            TextRenderer.DrawText(g, high, Font,
+                new Point((int)right - highSize.Width, (int)bottom + 5), Color.DimGray);
+            TextRenderer.DrawText(g, $"X range: {low} to {high}", Font,
+                new Point((int)left, bounds.Height - 21), Color.DimGray);
+        }
+
+        private sealed class PreviewPanel : Panel
+        {
+            public PreviewPanel() => DoubleBuffered = true;
+        }
 
         // =========================================================
         // FIT FROM SELECTED DATA
@@ -1156,6 +1306,32 @@ namespace MonteCarlo.Excel
             // =====================================================
             // SAVE OUTPUT VALUES
             // =====================================================
+
+            MonteCarlo.Core.DistributionKind coreDistribution =
+                Distribution switch
+                {
+                    DistributionType.Normal => MonteCarlo.Core.DistributionKind.Normal,
+                    DistributionType.Triangular => MonteCarlo.Core.DistributionKind.Triangular,
+                    DistributionType.Pert => MonteCarlo.Core.DistributionKind.Pert,
+                    DistributionType.Uniform => MonteCarlo.Core.DistributionKind.Uniform,
+                    DistributionType.Lognormal => MonteCarlo.Core.DistributionKind.Lognormal,
+                    DistributionType.Beta => MonteCarlo.Core.DistributionKind.Beta,
+                    _ => throw new InvalidOperationException("Unsupported distribution.")
+                };
+
+            string? validationMessage =
+                MonteCarlo.Core.DistributionPreview.Validate(
+                    coreDistribution,
+                    parameter1,
+                    parameter2,
+                    parameter3,
+                    parameter4);
+
+            if (validationMessage != null)
+            {
+                MessageBox.Show(validationMessage, "Monte Carlo");
+                return;
+            }
 
             AssumptionName =
                 assumptionName;

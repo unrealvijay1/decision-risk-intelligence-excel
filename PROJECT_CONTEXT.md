@@ -661,3 +661,19 @@ Priority when resolving discrepancies:
 
 Update this file after significant architectural changes so it remains
 useful as a future handover document.
+
+------------------------------------------------------------------------
+
+## 25. Distribution Preview
+
+The Define/Edit Assumption form previews all six supported assumption
+distributions from the unsaved values in its controls. The deterministic
+analytical density and parameter validation are implemented in
+`MonteCarlo.Core/DistributionPreview.cs`. The form only reads its controls,
+displays inline validation, and renders the returned points. Previewing
+does not sample, modify Excel cells, or save the simulation model.
+
+Normal and Lognormal previews cover four standard deviations on either
+side of the mean in their respective spaces. Bounded distributions use
+their support. Beta densities with singular endpoints are evaluated just
+inside the support; visual peak clipping is confined to the form renderer.
