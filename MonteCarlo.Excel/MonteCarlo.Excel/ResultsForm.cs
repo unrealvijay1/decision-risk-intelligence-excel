@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
+using MonteCarlo.Core;
 
 namespace MonteCarlo.Excel
 {
@@ -22,6 +23,7 @@ namespace MonteCarlo.Excel
         private readonly Panel tornadoPanel;
 
         private readonly TextBox txtTarget;
+        private double? currentTarget;
 
         private readonly Label lblProbabilityBelow;
         private readonly Label lblProbabilityAbove;
@@ -443,6 +445,13 @@ namespace MonteCarlo.Excel
             Controls.Add(
                 txtTarget);
 
+            // An edited value is not the accepted probability target until Calculate.
+            txtTarget.TextChanged += (_, _) =>
+            {
+                currentTarget = null;
+                histogramPanel.Invalidate();
+            };
+
 
             Button btnCalculate =
                 new Button
@@ -802,6 +811,9 @@ namespace MonteCarlo.Excel
             object? sender,
             EventArgs e)
         {
+            currentTarget = null;
+            histogramPanel.Invalidate();
+
             if (!double.TryParse(
                     txtTarget.Text,
                     out double target))
@@ -815,6 +827,8 @@ namespace MonteCarlo.Excel
                 return;
             }
 
+            // Keep probability semantics unchanged, but never plot non-finite targets.
+            currentTarget = double.IsFinite(target) ? target : null;
 
             double below =
                 currentForecastResult
@@ -1103,7 +1117,53 @@ namespace MonteCarlo.Excel
                     8);
 
 
+            DrawTargetMarker(graphics, area, min, max, leftMargin,
+                topMargin, chartWidth, chartHeight);
+
             graphics.ResetClip();
+        }
+
+        private void DrawTargetMarker(Graphics graphics, Rectangle area,
+            double min, double max, int leftMargin, int topMargin,
+            int chartWidth, int chartHeight)
+        {
+            ChartValuePosition position = ChartValuePosition.Calculate(currentTarget, min, max);
+            if (position.Range == ChartValueRange.Invalid || chartWidth <= 0 || chartHeight <= 0)
+                return;
+
+            string label = $"Target: {FormatValue(currentTarget!.Value)}";
+            float labelX = leftMargin;
+            using Pen pen = new Pen(Color.DarkOrange, 2.5f);
+            if (position.Range == ChartValueRange.InRange)
+            {
+                float x = ValueToX(currentTarget.Value, min, max, leftMargin, chartWidth);
+                graphics.DrawLine(pen, x, topMargin, x, topMargin + chartHeight);
+                graphics.DrawLine(pen, x - 4, topMargin, x + 4, topMargin);
+                labelX = x + 5;
+            }
+            else
+            {
+                label += position.Range == ChartValueRange.BelowRange
+                    ? " — below simulated range" : " — above simulated range";
+            }
+
+            using Font font = new Font("Segoe UI", 8, FontStyle.Bold);
+            using Brush textBrush = new SolidBrush(SystemColors.ControlText);
+            using Brush background = new SolidBrush(SystemColors.Window);
+            using StringFormat format = new StringFormat
+            {
+                Trimming = StringTrimming.EllipsisCharacter,
+                FormatFlags = StringFormatFlags.NoWrap
+            };
+            SizeF size = graphics.MeasureString(label, font);
+            float width = Math.Min(size.Width + 4, Math.Max(0, area.Width - 4));
+            float height = Math.Min(size.Height + 2, Math.Max(0, area.Height - 4));
+            labelX = Math.Clamp(labelX, area.Left + 2, area.Right - 2 - width);
+            float labelY = Math.Clamp(topMargin + font.GetHeight(graphics) + 8,
+                area.Top + 2, area.Bottom - 2 - height);
+            RectangleF bounds = new RectangleF(labelX, labelY, width, height);
+            graphics.FillRectangle(background, bounds);
+            graphics.DrawString(label, font, textBrush, bounds, format);
         }
 
 
@@ -1258,17 +1318,10 @@ namespace MonteCarlo.Excel
             }
 
 
-            double ratio =
-                (value - min) /
-                (max - min);
-
-
-            ratio =
-                Math.Max(
-                    0,
-                    Math.Min(
-                        1,
-                        ratio));
+            ChartValuePosition position = ChartValuePosition.Calculate(value, min, max);
+            // Existing markers retain endpoint clamping; targets are classified before drawing.
+            double ratio = position.Range == ChartValueRange.AboveRange
+                ? 1 : position.NormalizedPosition ?? 0;
 
 
             return
