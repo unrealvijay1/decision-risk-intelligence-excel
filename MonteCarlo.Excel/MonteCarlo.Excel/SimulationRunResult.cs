@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using MonteCarlo.Core;
 
 namespace MonteCarlo.Excel
 {
@@ -189,15 +190,7 @@ namespace MonteCarlo.Excel
         public double ProbabilityLessThanOrEqual(
             double target)
         {
-            int count =
-                Values.Count(
-                    value =>
-                        value <= target);
-
-
-            return
-                (double)count /
-                Values.Length;
+            return EmpiricalProbability.LessThanOrEqual(Values, target);
         }
 
 
@@ -208,15 +201,12 @@ namespace MonteCarlo.Excel
         public double ProbabilityGreaterThan(
             double target)
         {
-            int count =
-                Values.Count(
-                    value =>
-                        value > target);
+            return EmpiricalProbability.GreaterThan(Values, target);
+        }
 
-
-            return
-                (double)count /
-                Values.Length;
+        public double ProbabilityGreaterThanOrEqual(double target)
+        {
+            return EmpiricalProbability.GreaterThanOrEqual(Values, target);
         }
 
 

@@ -24,6 +24,16 @@ namespace MonteCarlo.Excel
 
         private readonly TextBox txtTarget;
         private double? currentTarget;
+        private TargetDirection? currentDirection;
+        private readonly System.Collections.Generic.Dictionary<ForecastRunResult, TargetDirection>
+            forecastDirections = new();
+        private readonly ComboBox cmbSuccessDirection;
+        private readonly Label lblSuccess;
+        private readonly Label lblSuccessLegend;
+        private readonly Label lblMissLegend;
+        private bool restoringDirection;
+        private static readonly Color SuccessRegionColor = Color.FromArgb(226, 242, 230);
+        private static readonly Color MissRegionColor = Color.FromArgb(250, 231, 234);
 
         private readonly Label lblProbabilityBelow;
         private readonly Label lblProbabilityAbove;
@@ -449,6 +459,7 @@ namespace MonteCarlo.Excel
             txtTarget.TextChanged += (_, _) =>
             {
                 currentTarget = null;
+                RefreshSuccessDisplay();
                 histogramPanel.Invalidate();
             };
 
@@ -533,6 +544,55 @@ namespace MonteCarlo.Excel
 
             Controls.Add(
                 lblProbabilityAbove);
+
+            Controls.Add(new Label
+            {
+                Text = "Success when:", Left = 30, Top = 648, Width = 110, Height = 24
+            });
+            cmbSuccessDirection = new ComboBox
+            {
+                Left = 140, Top = 645, Width = 295,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbSuccessDirection.Items.AddRange(new object[]
+            {
+                "At or below target (≤)", "At or above target (≥)"
+            });
+            Controls.Add(cmbSuccessDirection);
+            lblSuccess = new Label
+            {
+                Left = 30, Top = 677, Width = 430, Height = 25,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold), AutoEllipsis = true
+            };
+            lblSuccessLegend = new Label
+            {
+                Left = 30, Top = 705, Width = 205, Height = 22,
+                BackColor = SuccessRegionColor, Visible = false
+            };
+            lblMissLegend = new Label
+            {
+                Left = 245, Top = 705, Width = 190, Height = 22,
+                BackColor = MissRegionColor, Visible = false
+            };
+            Controls.Add(lblSuccess);
+            Controls.Add(lblSuccessLegend);
+            Controls.Add(lblMissLegend);
+            cmbSuccessDirection.SelectedIndexChanged += (_, _) =>
+            {
+                if (restoringDirection) return;
+                currentDirection = cmbSuccessDirection.SelectedIndex switch
+                {
+                    0 => TargetDirection.AtOrBelow,
+                    1 => TargetDirection.AtOrAbove,
+                    _ => null
+                };
+                if (currentDirection.HasValue)
+                    forecastDirections[currentForecastResult] = currentDirection.Value;
+                else
+                    forecastDirections.Remove(currentForecastResult);
+                RefreshSuccessDisplay();
+                histogramPanel.Invalidate();
+            };
 
 
             // =====================================================
@@ -729,6 +789,19 @@ namespace MonteCarlo.Excel
 
         private void RefreshForecastDisplay()
         {
+            currentTarget = null;
+            currentDirection = forecastDirections.TryGetValue(currentForecastResult, out var direction)
+                ? direction : null;
+            restoringDirection = true;
+            cmbSuccessDirection.SelectedIndex = currentDirection switch
+            {
+                TargetDirection.AtOrBelow => 0,
+                TargetDirection.AtOrAbove => 1,
+                _ => -1
+            };
+            restoringDirection = false;
+            RefreshSuccessDisplay();
+
             lblStatistics.Text =
                 $"Trials\n" +
                 $"{currentForecastResult.Trials:N0}\n\n" +
@@ -812,6 +885,7 @@ namespace MonteCarlo.Excel
             EventArgs e)
         {
             currentTarget = null;
+            RefreshSuccessDisplay();
             histogramPanel.Invalidate();
 
             if (!double.TryParse(
@@ -829,6 +903,7 @@ namespace MonteCarlo.Excel
 
             // Keep probability semantics unchanged, but never plot non-finite targets.
             currentTarget = double.IsFinite(target) ? target : null;
+            RefreshSuccessDisplay();
 
             double below =
                 currentForecastResult
@@ -864,6 +939,51 @@ namespace MonteCarlo.Excel
             DrawHistogram(
                 e.Graphics,
                 histogramPanel.ClientRectangle);
+        }
+
+        private void RefreshSuccessDisplay()
+        {
+            lblSuccess.Text = "";
+            lblSuccessLegend.Visible = false;
+            lblMissLegend.Visible = false;
+            if (!currentTarget.HasValue || !currentDirection.HasValue) return;
+
+            bool atOrBelow = currentDirection == TargetDirection.AtOrBelow;
+            double probability = atOrBelow
+                ? currentForecastResult.ProbabilityLessThanOrEqual(currentTarget.Value)
+                : currentForecastResult.ProbabilityGreaterThanOrEqual(currentTarget.Value);
+            string comparison = atOrBelow ? "≤" : "≥";
+            lblSuccess.Text = $"Success ({comparison} {FormatValue(currentTarget.Value)}): {probability:P1}";
+            lblSuccessLegend.Text = $"Success: {comparison} target";
+            lblMissLegend.Text = atOrBelow ? "Miss: > target" : "Miss: < target";
+            lblSuccessLegend.Visible = true;
+            lblMissLegend.Visible = true;
+        }
+
+        private void DrawTargetRegions(Graphics graphics, double min, double max,
+            int left, int top, int width, int height)
+        {
+            if (!currentDirection.HasValue || width <= 0 || height <= 0) return;
+            var position = ChartValuePosition.Calculate(currentTarget, min, max);
+            if (position.Range == ChartValueRange.Invalid) return;
+
+            bool leftIsSuccess = currentDirection == TargetDirection.AtOrBelow;
+            using Brush success = new SolidBrush(SuccessRegionColor);
+            using Brush miss = new SolidBrush(MissRegionColor);
+            if (position.Range != ChartValueRange.InRange)
+            {
+                bool allSuccess = position.Range == ChartValueRange.AboveRange
+                    ? leftIsSuccess : !leftIsSuccess;
+                graphics.FillRectangle(allSuccess ? success : miss, left, top, width, height);
+                return;
+            }
+
+            // These are value regions, not estimates of probability within a bin.
+            float boundary = ValueToX(currentTarget!.Value, min, max, left, width);
+            graphics.FillRectangle(leftIsSuccess ? success : miss,
+                left, top, boundary - left, height);
+            graphics.FillRectangle(leftIsSuccess ? miss : success,
+                boundary, top, left + width - boundary, height);
         }
 
 
@@ -979,6 +1099,8 @@ namespace MonteCarlo.Excel
             using Pen histogramAxisPen =
                 new Pen(
                     SystemColors.ControlText);
+
+            DrawTargetRegions(graphics, min, max, leftMargin, topMargin, chartWidth, chartHeight);
 
 
             graphics.DrawLine(
