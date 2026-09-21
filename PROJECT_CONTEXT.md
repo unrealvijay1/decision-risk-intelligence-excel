@@ -68,7 +68,7 @@ Current/implemented areas include:
 -   Define Forecast workflow.
 -   Monte Carlo simulation execution.
 -   Simulation results/dashboard.
--   Forecast target marker.
+-   Forecast target marker and P50/P80 value labels with overlap handling.
 -   Target success/failure visualization with explicit success-direction
     selection and empirical success probability (see section 26).
 -   Report exporter.
@@ -553,6 +553,7 @@ Major completed milestones:
 -   [x] Simulation execution
 -   [x] Results/dashboard
 -   [x] Forecast Target Marker (see section 26)
+-   [x] P50/P80 marker-label UX enhancement (see section 26)
 -   [x] Target Success / Failure Regions (see section 26)
 -   [x] Report exporter
 -   [x] Licensing framework
@@ -724,6 +725,13 @@ no success claim or shading is shown.
 ### Rendering, edge cases, and limits
 
 The in-range target and percentile markers share the same X-axis transformation.
+P50/P80 labels include full culture-aware numeric values. P50, P80, and Target
+use separate compact header rows with measured labels constrained to chart bounds.
+Ticks associate in-range labels with exact X coordinates; rows/ticks resolve
+presentation overlap without shifting coincident or nearby marker positions.
+Percentiles remain thin/dashed; Target remains orange/solid. Redundant percentile
+X-axis values are omitted; minimum/maximum labels remain.
+
 Subtle plot-background Success/Miss regions split at the exact target coordinate,
 including inside a bin. Bins are not recolored; bars, P50/P80, target marker,
 and labels render above shading. A text legend identifies both sides.
@@ -734,7 +742,7 @@ probability comes from simulation samples, never histogram geometry.
   or axis expansion. The whole plot represents Success/Miss according to
   direction (0%/100% for finite samples).
 - Endpoint equality follows inclusive comparisons even when its visual region
-  has zero width. Do not shift target/percentile positions to avoid overlap.
+  has zero width.
 - Constant outcomes retain the blank histogram; empirical success can still display.
 - Future persistence requires an explicit backward-compatible model/workbook change.
 - Worksheet currency/date/percentage formatting is not implemented; values use
@@ -744,4 +752,4 @@ probability comes from simulation samples, never histogram geometry.
 ### Validation baseline
 
 As of September 2026: **88 automated tests passing**, complete solution build successful,
-and manual Excel verification completed for the target marker and both success directions.
+and manual Excel verification completed for percentile/target markers and both success directions.

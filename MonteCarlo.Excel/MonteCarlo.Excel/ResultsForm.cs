@@ -1077,8 +1077,10 @@ namespace MonteCarlo.Excel
             int rightMargin =
                 25;
 
-            int topMargin =
-                20;
+            using Font markerFont = new Font("Segoe UI", 8, FontStyle.Bold);
+            int markerRowHeight = (int)Math.Ceiling(markerFont.GetHeight(graphics)) + 8;
+            const int markerHeaderTop = 4;
+            int topMargin = markerHeaderTop + 3 * markerRowHeight + 4;
 
             int bottomMargin =
                 55;
@@ -1167,191 +1169,85 @@ namespace MonteCarlo.Excel
             }
 
 
-            DrawVerticalMarker(
-                graphics,
-                currentForecastResult.P50,
-                min,
-                max,
-                leftMargin,
-                topMargin,
-                chartWidth,
-                chartHeight,
-                "P50");
+            DrawHistogramMarkers(graphics, area, min, max, leftMargin,
+                topMargin, chartWidth, chartHeight, markerFont, markerHeaderTop, markerRowHeight);
 
-
-            DrawVerticalMarker(
-                graphics,
-                currentForecastResult.P80,
-                min,
-                max,
-                leftMargin,
-                topMargin,
-                chartWidth,
-                chartHeight,
-                "P80");
-
-
-            DrawXAxisLabel(
-                graphics,
-                min,
-                min,
-                max,
-                leftMargin,
-                chartWidth,
-                topMargin +
-                    chartHeight +
-                    8);
-
-
-            DrawXAxisLabel(
-                graphics,
-                currentForecastResult.P50,
-                min,
-                max,
-                leftMargin,
-                chartWidth,
-                topMargin +
-                    chartHeight +
-                    8);
-
-
-            DrawXAxisLabel(
-                graphics,
-                currentForecastResult.P80,
-                min,
-                max,
-                leftMargin,
-                chartWidth,
-                topMargin +
-                    chartHeight +
-                    8);
-
-
-            DrawXAxisLabel(
-                graphics,
-                max,
-                min,
-                max,
-                leftMargin,
-                chartWidth,
-                topMargin +
-                    chartHeight +
-                    8);
-
-
-            DrawTargetMarker(graphics, area, min, max, leftMargin,
-                topMargin, chartWidth, chartHeight);
+            // Percentile values are shown in the header; retain only range labels here.
+            DrawXAxisLabel(graphics, min, min, max, leftMargin, chartWidth,
+                topMargin + chartHeight + 8);
+            DrawXAxisLabel(graphics, max, min, max, leftMargin, chartWidth,
+                topMargin + chartHeight + 8);
 
             graphics.ResetClip();
         }
 
-        private void DrawTargetMarker(Graphics graphics, Rectangle area,
-            double min, double max, int leftMargin, int topMargin,
-            int chartWidth, int chartHeight)
+        private void DrawHistogramMarkers(Graphics graphics, Rectangle area,
+            double min, double max, int left, int top, int width, int height,
+            Font font, int headerTop, int rowHeight)
         {
-            ChartValuePosition position = ChartValuePosition.Calculate(currentTarget, min, max);
-            if (position.Range == ChartValueRange.Invalid || chartWidth <= 0 || chartHeight <= 0)
-                return;
+            if (width <= 0 || height <= 0) return;
 
-            string label = $"Target: {FormatValue(currentTarget!.Value)}";
-            float labelX = leftMargin;
-            using Pen pen = new Pen(Color.DarkOrange, 2.5f);
-            if (position.Range == ChartValueRange.InRange)
+            float p50X = ValueToX(currentForecastResult.P50, min, max, left, width);
+            float p80X = ValueToX(currentForecastResult.P80, min, max, left, width);
+            using Pen percentilePen = new Pen(SystemColors.ControlDarkDark, 1.5f)
             {
-                float x = ValueToX(currentTarget.Value, min, max, leftMargin, chartWidth);
-                graphics.DrawLine(pen, x, topMargin, x, topMargin + chartHeight);
-                graphics.DrawLine(pen, x - 4, topMargin, x + 4, topMargin);
-                labelX = x + 5;
-            }
-            else
+                DashStyle = DashStyle.Dash
+            };
+            using Pen targetPen = new Pen(Color.DarkOrange, 2.5f);
+            graphics.DrawLine(percentilePen, p50X, top, p50X, top + height);
+            graphics.DrawLine(percentilePen, p80X, top, p80X, top + height);
+
+            var targetPosition = ChartValuePosition.Calculate(currentTarget, min, max);
+            float? targetX = null;
+            if (targetPosition.Range == ChartValueRange.InRange)
             {
-                label += position.Range == ChartValueRange.BelowRange
-                    ? " — below simulated range" : " — above simulated range";
+                targetX = ValueToX(currentTarget!.Value, min, max, left, width);
+                graphics.DrawLine(targetPen, targetX.Value, top, targetX.Value, top + height);
+                graphics.DrawLine(targetPen, targetX.Value - 4, top, targetX.Value + 4, top);
             }
 
-            using Font font = new Font("Segoe UI", 8, FontStyle.Bold);
-            using Brush textBrush = new SolidBrush(SystemColors.ControlText);
-            using Brush background = new SolidBrush(SystemColors.Window);
+            // All lines precede text. Separate rows identify even exactly coincident markers.
+            DrawMarkerLabel(graphics, area, font,
+                $"P50  {FormatValue(currentForecastResult.P50)}", p50X,
+                headerTop, rowHeight, left, SystemColors.ControlDarkDark);
+            DrawMarkerLabel(graphics, area, font,
+                $"P80  {FormatValue(currentForecastResult.P80)}", p80X,
+                headerTop + rowHeight, rowHeight, left, SystemColors.ControlDarkDark);
+
+            if (targetPosition.Range == ChartValueRange.Invalid) return;
+            string targetLabel = $"Target: {FormatValue(currentTarget!.Value)}";
+            if (targetPosition.Range == ChartValueRange.BelowRange)
+                targetLabel += " — below simulated range";
+            else if (targetPosition.Range == ChartValueRange.AboveRange)
+                targetLabel += " — above simulated range";
+            DrawMarkerLabel(graphics, area, font, targetLabel, targetX,
+                headerTop + 2 * rowHeight, rowHeight, left, Color.DarkOrange);
+        }
+
+        private static void DrawMarkerLabel(Graphics graphics, Rectangle area, Font font,
+            string text, float? markerX, int rowTop, int rowHeight, int left, Color markerColor)
+        {
             using StringFormat format = new StringFormat
             {
                 Trimming = StringTrimming.EllipsisCharacter,
                 FormatFlags = StringFormatFlags.NoWrap
             };
-            SizeF size = graphics.MeasureString(label, font);
-            float width = Math.Min(size.Width + 4, Math.Max(0, area.Width - 4));
-            float height = Math.Min(size.Height + 2, Math.Max(0, area.Height - 4));
-            labelX = Math.Clamp(labelX, area.Left + 2, area.Right - 2 - width);
-            float labelY = Math.Clamp(topMargin + font.GetHeight(graphics) + 8,
-                area.Top + 2, area.Bottom - 2 - height);
-            RectangleF bounds = new RectangleF(labelX, labelY, width, height);
-            graphics.FillRectangle(background, bounds);
-            graphics.DrawString(label, font, textBrush, bounds, format);
+            float availableWidth = Math.Max(0, area.Width - 4);
+            float labelWidth = Math.Min(graphics.MeasureString(text, font).Width + 4, availableWidth);
+            float labelX = Math.Clamp(markerX.HasValue ? markerX.Value + 5 : left,
+                area.Left + 2, area.Right - 2 - labelWidth);
+            using Brush textBrush = new SolidBrush(SystemColors.ControlText);
+            graphics.DrawString(text, font, textBrush,
+                new RectangleF(labelX, rowTop, labelWidth, rowHeight - 5), format);
+
+            if (!markerX.HasValue) return;
+            // Tick remains at the exact X coordinate, below its label even at panel edges.
+            float tickY = rowTop + rowHeight - 3;
+            using Pen tickPen = new Pen(markerColor, 1);
+            float labelAnchor = Math.Clamp(markerX.Value, labelX, labelX + labelWidth);
+            graphics.DrawLine(tickPen, labelAnchor, tickY, markerX.Value, tickY);
+            graphics.DrawLine(tickPen, markerX.Value, tickY - 2, markerX.Value, tickY + 2);
         }
-
-
-        // =========================================================
-        // HISTOGRAM MARKER
-        // =========================================================
-
-        private void DrawVerticalMarker(
-            Graphics graphics,
-            double value,
-            double min,
-            double max,
-            int leftMargin,
-            int topMargin,
-            int chartWidth,
-            int chartHeight,
-            string label)
-        {
-            float x =
-                ValueToX(
-                    value,
-                    min,
-                    max,
-                    leftMargin,
-                    chartWidth);
-
-
-            using Pen markerPen =
-                new Pen(
-                    SystemColors.ControlDarkDark,
-                    1.5f);
-
-
-            markerPen.DashStyle =
-                DashStyle.Dash;
-
-
-            graphics.DrawLine(
-                markerPen,
-                x,
-                topMargin,
-                x,
-                topMargin +
-                    chartHeight);
-
-
-            using Font markerFont =
-                new Font(
-                    "Segoe UI",
-                    8,
-                    FontStyle.Bold);
-
-
-            using Brush markerTextBrush =
-                new SolidBrush(
-                    SystemColors.ControlText);
-
-
-            graphics.DrawString(
-                label,
-                markerFont,
-                markerTextBrush,
-                x + 3,
-                topMargin + 3);
-        }
-
 
         // =========================================================
         // X-AXIS LABEL
