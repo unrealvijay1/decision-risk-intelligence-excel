@@ -4,7 +4,7 @@
 development of the Monte Carlo for Excel product across future coding
 sessions.
 
-**Last updated:** 14 September 2026\
+**Last updated:** 21 September 2026\
 **Current installer version:** 0.1.0\
 **Primary platform:** Windows / Microsoft Excel 64-bit\
 **Technology:** C# / .NET 10 / Excel-DNA
@@ -44,7 +44,7 @@ Important projects/components include:
 -   **MonteCarlo.Core** --- core simulation/domain logic.
 -   **MonteCarlo.Excel** --- Excel-DNA add-in, Ribbon, UI, Excel
     integration and licensing.
--   **MonteCarlo.Tests** --- automated tests where applicable.
+-   **MonteCarlo.Core.Tests** --- platform-independent automated tests.
 -   **MonteCarlo.LicenseGenerator** --- private utility used by the
     developer to generate signed customer licenses.
 -   **Installer** --- Inno Setup installer scripts and generated
@@ -68,6 +68,9 @@ Current/implemented areas include:
 -   Define Forecast workflow.
 -   Monte Carlo simulation execution.
 -   Simulation results/dashboard.
+-   Forecast target marker.
+-   Target success/failure visualization with explicit success-direction
+    selection and empirical success probability (see section 26).
 -   Report exporter.
 -   Distribution-related functionality/framework.
 -   Licensing UI.
@@ -549,6 +552,8 @@ Major completed milestones:
 -   [x] Forecast definition
 -   [x] Simulation execution
 -   [x] Results/dashboard
+-   [x] Forecast Target Marker (see section 26)
+-   [x] Target Success / Failure Regions (see section 26)
 -   [x] Report exporter
 -   [x] Licensing framework
 -   [x] 30-day trial
@@ -603,7 +608,7 @@ Potential future work includes:
 -   Sensitivity analysis enhancements.
 -   Better error handling and user guidance.
 -   Product documentation/help.
--   Automated regression tests.
+-   Expanded automated regression coverage.
 -   Installer upgrade handling.
 -   32-bit Excel support if commercially required.
 -   Code signing.
@@ -677,3 +682,66 @@ Normal and Lognormal previews cover four standard deviations on either
 side of the mean in their respective spaces. Bounded distributions use
 their support. Beta densities with singular endpoints are evaluated just
 inside the support; visual peak clipping is confined to the form renderer.
+
+------------------------------------------------------------------------
+
+## 26. Forecast Target and Success / Failure Regions
+
+### Architecture and relevant files
+
+`ResultsForm` renders the histogram with custom WinForms/GDI+. Core's
+`ChartValuePosition` supplies shared range classification/normalization;
+`TargetDirection` defines success direction; `EmpiricalProbability` counts
+sample comparisons. `ForecastRunResult` delegates probability calculations
+to that helper. Simulation generation, statistics, and percentiles are unchanged.
+
+- `MonteCarlo.Excel/MonteCarlo.Excel/`: `ResultsForm.cs`, `SimulationRunResult.cs`.
+- `MonteCarlo.Core/`: `ChartValuePosition.cs`, `TargetDirection.cs`, `EmpiricalProbability.cs`.
+- `MonteCarlo.Core.Tests/`: `ChartValuePositionTests.cs`, `EmpiricalProbabilityTests.cs`.
+
+### Session state and probability semantics
+
+Target and direction are ResultsForm session state, not persisted in
+`ForecastDefinition` or workbook storage. Rendering uses the accepted,
+calculated target. Pending edits or missing/invalid/non-finite targets clear
+the marker, regions, success percentage, and legend. Forecast refresh resets
+the target to P80 rounded to two decimals; this can differ from exact P80.
+
+Direction is explicit, initially unspecified in each new results window,
+and retained independently per forecast within that window. Never infer it
+from forecast name, worksheet, distribution, target value, or formatting.
+Switching forecasts restores direction but retains the target reset above.
+Without direction, the marker and existing probabilities still work;
+no success claim or shading is shown.
+
+- `AtOrBelow`: success is outcome `<= target`; Miss is `> target`.
+- `AtOrAbove`: success is outcome `>= target`; Miss is `< target`.
+- `P(<= target)` is inclusive lower-side probability; existing `P(> target)`
+  remains strict upper-side probability; `P(>= target)` is inclusive upper-side.
+- Never implement `P(>= target)` as `1 - P(<= target)`: that gives `P(> target)`
+  and loses equality mass. Probabilities use matching samples / total samples.
+
+### Rendering, edge cases, and limits
+
+The in-range target and percentile markers share the same X-axis transformation.
+Subtle plot-background Success/Miss regions split at the exact target coordinate,
+including inside a bin. Bins are not recolored; bars, P50/P80, target marker,
+and labels render above shading. A text legend identifies both sides.
+Shading represents value regions, not probability mass; numerical success
+probability comes from simulation samples, never histogram geometry.
+
+- Out-of-range targets retain an annotation, with no target line, clamping,
+  or axis expansion. The whole plot represents Success/Miss according to
+  direction (0%/100% for finite samples).
+- Endpoint equality follows inclusive comparisons even when its visual region
+  has zero width. Do not shift target/percentile positions to avoid overlap.
+- Constant outcomes retain the blank histogram; empirical success can still display.
+- Future persistence requires an explicit backward-compatible model/workbook change.
+- Worksheet currency/date/percentage formatting is not implemented; values use
+  the existing culture-aware numeric formatting.
+- UI state/layout integration is primarily manually verified, not automated UI-tested.
+
+### Validation baseline
+
+As of September 2026: **88 automated tests passing**, complete solution build successful,
+and manual Excel verification completed for the target marker and both success directions.
