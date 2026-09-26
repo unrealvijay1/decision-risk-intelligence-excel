@@ -22,4 +22,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationRunResult.cs" Link="Results/SimulationRunResult.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationModel.cs" Link="Results/SimulationModel.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SensitivityResult.cs" Link="Results/SensitivityResult.cs" />
+  </ItemGroup>
+
 </Project>

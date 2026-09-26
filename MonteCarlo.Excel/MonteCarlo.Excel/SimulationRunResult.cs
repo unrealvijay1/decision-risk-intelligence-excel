@@ -209,6 +209,25 @@ namespace MonteCarlo.Excel
             return EmpiricalProbability.GreaterThanOrEqual(Values, target);
         }
 
+        /// <summary>Confidence is a percentage (0 through 100), not a fraction.
+        /// Unspecified direction requests a lower-tail percentile. Interpolated
+        /// quantiles do not guarantee the same inclusive sample probability.</summary>
+        public double GetTargetForConfidence(double confidencePercent, TargetDirection? direction = null)
+        {
+            if (!double.IsFinite(confidencePercent) || confidencePercent < 0 || confidencePercent > 100)
+                throw new ArgumentOutOfRangeException(nameof(confidencePercent), "Enter confidence from 0 to 100.");
+            if (direction.HasValue && direction != TargetDirection.AtOrBelow && direction != TargetDirection.AtOrAbove)
+                throw new ArgumentOutOfRangeException(nameof(direction));
+            if (Values.Length == 0 || Values.Any(value => !double.IsFinite(value)))
+                throw new InvalidOperationException("Required target unavailable: results must contain finite values.");
+            double probability = confidencePercent / 100;
+            if (direction == TargetDirection.AtOrAbove) probability = 1 - probability;
+            double target = Percentile(Values.OrderBy(value => value).ToArray(), probability);
+            if (!double.IsFinite(target))
+                throw new InvalidOperationException("Required target is outside the supported numeric range.");
+            return target;
+        }
+
 
         // =========================================================
         // SPEARMAN CORRELATION

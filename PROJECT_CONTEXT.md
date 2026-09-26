@@ -4,7 +4,7 @@
 development of the Monte Carlo for Excel product across future coding
 sessions.
 
-**Last updated:** 21 September 2026\
+**Last updated:** 26 September 2026\
 **Current installer version:** 0.1.0\
 **Primary platform:** Windows / Microsoft Excel 64-bit\
 **Technology:** C# / .NET 10 / Excel-DNA
@@ -753,3 +753,125 @@ probability comes from simulation samples, never histogram geometry.
 
 As of September 2026: **88 automated tests passing**, complete solution build successful,
 and manual Excel verification completed for percentile/target markers and both success directions.
+
+## 27. Cumulative Probability (S-Curve)
+
+The forecast results chart has a Distribution/Cumulative selector. Distribution
+is the initial default and its existing renderer is unchanged. ResultsForm stores
+the last selected mode in a static, session-only field, so subsequent results
+dialogs retain the selection. Each successful simulation still opens a new modal
+dialog with a new SimulationRunResult; there is no in-place rerun workflow.
+Switching views only invalidates the chart and never calls the simulation engine.
+
+Core's CumulativeProbability.Build sorts a copy of the supplied outcomes and
+groups duplicates into one jump per distinct value. Each point includes the
+probability immediately before the jump and the inclusive probability at that
+value. ResultsForm draws a right-continuous empirical step curve with a 0–100%
+Y-axis, caching the data per ForecastRunResult within the dialog. Empty results
+have no curve; any non-finite sample makes the whole curve unavailable with an
+inline explanation. Samples are never silently removed from the denominator.
+
+The cumulative chart reuses ForecastRunResult.P50/P80 exactly and shares the
+existing marker renderer. It does not calculate percentiles. Interpolated
+percentile values may not intersect an empirical step at exactly 50%/80%.
+Constant/single outcomes get a padded range. Cumulative plotting includes finite
+out-of-range targets in its axis range; Distribution retains its original
+out-of-range annotation behavior. Numeric formatting remains unchanged (no new
+Excel date/currency-format support).
+
+Target confidence reuses ProbabilityLessThanOrEqual for AtOrBelow and
+ProbabilityGreaterThanOrEqual for AtOrAbove. With unspecified direction, the
+chart explicitly labels P(X <= target) as cumulative probability, not success
+confidence. Existing success/miss regions are reused. When currentTarget is
+absent, the cumulative chart shows its curve and percentile markers without a
+target line or chart probability label. The existing P80 default-target and
+Calculate workflows remain unchanged.
+
+Validation: complete suite passed before edits (88 tests), after the Core stage
+(102 tests), and after integration (107 tests; 19 new cases, no failures/skips).
+The complete solution build succeeded with three warnings in unchanged files
+(LicenseService, AssumptionForm, WorkbookPersistence). Tests link the non-UI
+forecast result/model source files to exercise actual percentile/probability
+behavior without requiring Excel. Manual Excel UI verification is still required:
+switching without a simulation, target/no-target states, both directions,
+coincident markers, constant outcomes, out-of-range targets, display scaling,
+and a new run reopening in the selected mode with fresh results.
+
+## 28. Confidence to Target
+
+Probability Analysis now contains compact Target → Confidence and Confidence →
+Target tabs within its existing footprint. The existing percentile panel and
+P50/P80 chart benchmarks remain unchanged. Neither calculation-tab changes nor
+chart-view changes invoke a simulation.
+
+ForecastRunResult.GetTargetForConfidence accepts a percentage from 0 through 100
+and an optional TargetDirection. It sorts a copy and calls the same private
+Percentile method used for P10/P50/P80/P90. AtOrBelow uses C/100; AtOrAbove uses
+1 - C/100; unspecified direction uses the lower-tail percentile C/100 without
+claiming success confidence. Invalid confidence, non-finite samples, and
+unrepresentable interpolation results are rejected; no samples are filtered.
+The percentile algorithm and EmpiricalProbability remain unchanged.
+
+ResultsForm tracks manual versus confidence-derived target origin and accepted
+requested confidence. A successful reverse calculation updates the shared target,
+both probability displays, success regions, and chart. The full target is retained
+internally; the editable target textbox uses round-trip numeric formatting, while
+result labels use the existing display formatting. Invalid confidence submissions
+leave the accepted calculation intact. Tab changes retain accepted state. Direction
+changes recompute a confidence-derived target from accepted confidence (not pending
+textbox edits), but retain a manually entered target. Failed reverse recalculation
+restores the prior direction. Forecast changes clear reverse state and retain the
+existing rounded-P80 default-target workflow.
+
+The reverse result distinguishes requested confidence, required target, and actual
+sample probability. These may differ for interpolated quantiles, discrete samples,
+and duplicates. The S-Curve remains an increasing lower-tail CDF. Its dashed orange
+horizontal guide, intersection dot, and percentage label always represent actual
+P(X <= target), even when success means X >= target. Inclusive upper-tail success
+continues to use ProbabilityGreaterThanOrEqual. No requested-probability guide is
+drawn at a misleading curve intersection.
+
+Validation for this enhancement: baseline 107 tests; calculation stage 130 tests;
+final suite 139 tests (32 new cases), all passing with no failures/skips. Complete
+solution build succeeds with the same three warnings in unchanged files noted
+above. Manual Excel verification remains required for both calculation modes,
+73%/87.5%, both directions and switching, 0%/100%, invalid input preserving accepted
+confidence, guide/marker overlaps, constants, out-of-range targets, forecast changes,
+fresh simulations, chart-view session persistence, and Windows display scaling.
+
+## 29. Decision-Focused Results Layout
+
+ResultsForm retains its 1120 x 830 window and existing controls/handlers, arranged
+with nested WinForms TableLayoutPanels. The top contains the forecast selector
+and decision summary: dominant actual success probability, accepted target, P50,
+and P80. The main chart is on the left and Decision tools on the right. Sensitivity
+and permanently visible, borderless Details occupy the supporting lower row.
+Details contains Trials, Mean, Std Dev, Minimum, Maximum, P10, and P90. The separate
+statistics/percentiles presentation is removed; all model calculations remain.
+
+RefreshSuccessDisplay is the shared target-dependent presentation path. It clears
+all contextual labels before rebuilding the summary, requested confidence, and
+legends from accepted state. Missing target displays 'No target defined' and an
+em dash instead of a percentage. An accepted target without direction displays
+'Select success direction', with no claim of success. Forecast changes retain
+the rounded-P80 workflow, reset reverse-calculation state, and refresh landmarks,
+Details, and forecast tooltips. Full target precision and direction-change behavior
+are unchanged.
+
+Actual success probability has one dominant summary presentation. The calculation
+tabs no longer repeat that result; the reverse tab shows requested confidence and
+'Target at ... confidence'. Unspecified direction uses 'cumulative probability'.
+The redundant cumulative-chart footer is removed; the actual probability guide
+remains labelled '≤ target', including for AtOrAbove success. Existing inclusive
+and strict comparison values remain as subdued context below Decision tools.
+Tooltips expose long forecast names and summary/detail values when clipped.
+
+Validation: complete baseline and final suites each pass 139 tests, with zero
+failures/skips. No new calculation or pixel-coordinate tests were needed. Full
+solution build succeeds with the three existing warnings noted above. Runtime
+presentation smoke checks cover unspecified direction, target clearing without
+stale comparison labels, confidence-created targets, and direction recalculation.
+Offscreen rendering did not provide a usable preview; manual Excel visual checks
+remain required for hierarchy, both chart/calculation modes, both directions,
+missing target, forecast switching, long names/large values, marker overlap,
+Details, Sensitivity, Export Report, and Windows 100%/125%/150% scaling.
