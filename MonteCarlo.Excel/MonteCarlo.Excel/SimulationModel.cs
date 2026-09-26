@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using MonteCarlo.Core;
 
 namespace MonteCarlo.Excel
 {
@@ -23,6 +24,8 @@ namespace MonteCarlo.Excel
 
     public class AssumptionDefinition
     {
+        // Optional hidden workbook name; Excel tracks renames and structural cell edits.
+        public string CellLink { get; set; } = "";
         // Friendly name shown in Model Manager,
         // sensitivity analysis and reports.
         //
@@ -113,8 +116,13 @@ namespace MonteCarlo.Excel
     // FORECAST DEFINITION
     // =============================================================
 
+    public sealed record ForecastTargetSettings(double? Target, TargetDirection? Direction, double? RequestedConfidence);
+
     public class ForecastDefinition
     {
+        // Null preserves the historical P80 default; a non-null record may explicitly clear the target.
+        public ForecastTargetSettings? TargetSettings { get; set; }
+        public string CellLink { get; set; } = "";
         // Friendly forecast name.
         //
         // Examples:

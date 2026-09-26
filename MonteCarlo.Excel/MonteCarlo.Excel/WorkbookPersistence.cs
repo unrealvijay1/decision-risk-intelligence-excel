@@ -1,4 +1,5 @@
 using System;
+using MonteCarlo.Core;
 using ExcelDna.Integration;
 
 namespace MonteCarlo.Excel
@@ -35,7 +36,15 @@ namespace MonteCarlo.Excel
                     workbook);
 
 
+            // Resolve/create links before changing any existing metadata.
+            foreach (var assumption in SimulationModel.Assumptions)
+                assumption.CellLink = EnsureCellLink(workbook, assumption.CellLink, assumption.SheetName, assumption.CellAddress);
+            foreach (var forecast in SimulationModel.Forecasts)
+                forecast.CellLink = EnsureCellLink(workbook, forecast.CellLink, forecast.SheetName, forecast.CellAddress);
             configSheet.Cells.Clear();
+            // Text metadata must never become worksheet formulas.
+            configSheet.Range["A:D"].NumberFormat = "@";
+            configSheet.Range["I:N"].NumberFormat = "@";
 
 
             // =====================================================
@@ -69,6 +78,8 @@ namespace MonteCarlo.Excel
             configSheet.Cells[1, 9].Value2 =
                 "Name";
 
+
+            configSheet.Cells[1, 10].Value2 = "CellLink";
 
             int row =
                 2;
@@ -139,6 +150,7 @@ namespace MonteCarlo.Excel
                     assumption.Name;
 
 
+                configSheet.Cells[row, 10].Value2 = assumption.CellLink;
                 row++;
             }
 
@@ -205,6 +217,8 @@ namespace MonteCarlo.Excel
                     forecast.Name;
 
 
+                configSheet.Cells[row, 10].Value2 = forecast.CellLink;
+                WriteTargetSettings(configSheet, row, forecast.TargetSettings);
                 row++;
             }
 
@@ -222,7 +236,14 @@ namespace MonteCarlo.Excel
         // LOAD MODEL FROM WORKBOOK
         // =========================================================
 
-        public static void LoadModel() => LoadModelCore(null);
+        public static ValidationResult LastLoadValidation { get; private set; } = new();
+        public static Action<string>? ReportRestoreProblem { get; set; }
+
+        public static void LoadModel()
+        {
+            LastLoadValidation = LoadModelForSimulation();
+            if (!LastLoadValidation.IsValid) ReportRestoreProblem?.Invoke(LastLoadValidation.UserMessage);
+        }
 
         public static ValidationResult LoadModelForSimulation()
         {
@@ -286,7 +307,7 @@ namespace MonteCarlo.Excel
                 {
                     if (validation == null || row > lastConfigRow) break;
                     bool hasData = false;
-                    for (int column = 2; column <= (newLayout ? 9 : 8); column++)
+                    for (int column = 2; column <= (newLayout ? 14 : 8); column++)
                         if (configSheet.Cells[row, column].Value2 != null) hasData = true;
                     if (hasData)
                         validation.Add($"Saved model row {row}", "The item type is missing.",
@@ -531,6 +552,10 @@ namespace MonteCarlo.Excel
             }
 
 
+            string cellLink = Convert.ToString(ReadOptional(configSheet, row, 10, "CellLink")) ?? "";
+            ResolveSavedLink(configSheet.Parent, cellLink, ref sheetName, ref cellAddress,
+                validation, $"Saved assumption row {row} ({sheetName}!{cellAddress})");
+
             if (validation != null)
             {
                 string location = $"Saved assumption row {row} ({sheetName}!{cellAddress})";
@@ -575,6 +600,7 @@ namespace MonteCarlo.Excel
             SimulationModel.Assumptions.Add(
                 new AssumptionDefinition
                 {
+                    CellLink = cellLink,
                     Name =
                         name,
 
@@ -650,6 +676,10 @@ namespace MonteCarlo.Excel
             }
 
 
+            string cellLink = Convert.ToString(ReadOptional(configSheet, row, 10, "CellLink")) ?? "";
+            ResolveSavedLink(configSheet.Parent, cellLink, ref sheetName, ref cellAddress,
+                validation, $"Saved forecast row {row} ({sheetName}!{cellAddress})");
+
             if (validation != null && (string.IsNullOrWhiteSpace(sheetName) || string.IsNullOrWhiteSpace(cellAddress)))
                 validation.Add($"Saved forecast row {row}", "The worksheet or output cell reference is missing.",
                     "Select the output cell and choose Define Forecast.");
@@ -676,6 +706,8 @@ namespace MonteCarlo.Excel
             SimulationModel.Forecasts.Add(
                 new ForecastDefinition
                 {
+                    TargetSettings = ReadTargetSettings(configSheet, row, validation),
+                    CellLink = cellLink,
                     Name =
                         name,
 
@@ -691,6 +723,128 @@ namespace MonteCarlo.Excel
         // =========================================================
         // GET OR CREATE CONFIG SHEET
         // =========================================================
+
+        // Update only the forecast row, retaining unrelated (including damaged) saved metadata.
+        public static void SaveTargetSettings(ForecastDefinition forecast, ForecastTargetSettings settings, object? sourceWorkbook = null)
+        {
+            dynamic application = ExcelDnaUtil.Application;
+            dynamic workbook = sourceWorkbook ?? application.ActiveWorkbook;
+            dynamic? sheet = workbook == null ? null : FindConfigSheet(workbook);
+            if (sheet == null) throw new InvalidOperationException("The saved forecast is unavailable.");
+            int last = (int)sheet.UsedRange.Row + (int)sheet.UsedRange.Rows.Count - 1;
+            for (int row = 2; row <= last; row++)
+            {
+                if (!string.Equals(Convert.ToString(sheet.Cells[row, 1].Value2), "Forecast", StringComparison.OrdinalIgnoreCase)) continue;
+                string link = Convert.ToString(ReadOptional(sheet, row, 10, "CellLink")) ?? "";
+                bool matches = !string.IsNullOrEmpty(forecast.CellLink) ? link == forecast.CellLink :
+                    string.Equals(Convert.ToString(sheet.Cells[row, 2].Value2), forecast.SheetName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(Convert.ToString(sheet.Cells[row, 3].Value2), forecast.CellAddress, StringComparison.OrdinalIgnoreCase);
+                if (!matches) continue;
+                WriteTargetSettings(sheet, row, settings);
+                forecast.TargetSettings = settings;
+                return;
+            }
+            throw new InvalidOperationException("The saved forecast is unavailable.");
+        }
+
+        private static void WriteTargetSettings(dynamic sheet, int row, ForecastTargetSettings? settings)
+        {
+            string[] headers = { "TargetConfigured", "Target", "TargetDirection", "RequestedConfidence" };
+            for (int i = 0; i < headers.Length; i++) sheet.Cells[1, 11 + i].Value2 = headers[i];
+            sheet.Cells[row, 11].Value2 = settings == null ? null : "Yes";
+            sheet.Cells[row, 12].Value2 = settings?.Target;
+            sheet.Cells[row, 13].Value2 = settings?.Direction?.ToString();
+            sheet.Cells[row, 14].Value2 = settings?.RequestedConfidence;
+        }
+
+        private static ForecastTargetSettings? ReadTargetSettings(dynamic sheet, int row, ValidationResult? validation)
+        {
+            object? marker = ReadOptional(sheet, row, 11, "TargetConfigured");
+            object? target = ReadOptional(sheet, row, 12, "Target");
+            object? direction = ReadOptional(sheet, row, 13, "TargetDirection");
+            object? confidence = ReadOptional(sheet, row, 14, "RequestedConfidence");
+            if (marker == null && target == null && direction == null && confidence == null) return null;
+            bool valid = string.Equals(Convert.ToString(marker), "Yes", StringComparison.OrdinalIgnoreCase);
+            double? targetValue = null, confidenceValue = null;
+            TargetDirection? directionValue = null;
+            if (target != null)
+            {
+                if (SimulationValidation.TryNumber(target, out double value)) targetValue = value;
+                else valid = false;
+            }
+            if (confidence != null)
+            {
+                if (SimulationValidation.TryNumber(confidence, out double value) && value >= 0 && value <= 100 && targetValue.HasValue)
+                    confidenceValue = value;
+                else valid = false;
+            }
+            if (!string.IsNullOrEmpty(Convert.ToString(direction)))
+            {
+                if (Enum.TryParse(Convert.ToString(direction), out TargetDirection value) && Enum.IsDefined(value)) directionValue = value;
+                else valid = false;
+            }
+            if (!valid)
+                validation?.Add($"Saved forecast row {row}", "The saved target settings are incomplete or invalid.",
+                    "Redefine this forecast in Model Manager and set its target again in Results.");
+            return valid ? new ForecastTargetSettings(targetValue, directionValue, confidenceValue) : null;
+        }
+
+        private const string LinkPrefix = "_MC_Cell_";
+
+        private static object? ReadOptional(dynamic sheet, int row, int column, string header)
+        {
+            return string.Equals(Convert.ToString(sheet.Cells[1, column].Value2), header, StringComparison.OrdinalIgnoreCase)
+                ? ExcelSimulationWorkbook.ReadCellValue(ExcelDnaUtil.Application, sheet.Cells[row, column]) : null;
+        }
+
+        private static string EnsureCellLink(dynamic workbook, string link, string sheet, string address)
+        {
+            // Never rebind a broken saved name to whatever now occupies its old address.
+            if (!string.IsNullOrEmpty(link)) return link;
+            try
+            {
+                dynamic cell = workbook.Worksheets[sheet].Range[address];
+                if (Convert.ToDouble(cell.Cells.CountLarge) != 1)
+                    throw new InvalidOperationException("A model item must refer to one cell.");
+                string name = LinkPrefix + Guid.NewGuid().ToString("N");
+                string reference = "='" + ((string)cell.Worksheet.Name).Replace("'", "''") + "'!" + cell.Address[true, true];
+                workbook.Names.Add(Name: name, RefersTo: reference, Visible: false);
+                return name;
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+                // Older/stale rows remain intact and will be reported on restore/simulation.
+                return "";
+            }
+        }
+
+        private static void ResolveSavedLink(dynamic workbook, string link, ref string sheet, ref string address,
+            ValidationResult? validation, string location)
+        {
+            try
+            {
+                dynamic cell;
+                if (string.IsNullOrEmpty(link)) cell = workbook.Worksheets[sheet].Range[address];
+                else
+                {
+                    if (!link.StartsWith(LinkPrefix, StringComparison.Ordinal))
+                        throw new InvalidOperationException("Invalid saved link.");
+                    cell = workbook.Names[link].RefersToRange;
+                }
+                if (Convert.ToDouble(cell.Cells.CountLarge) != 1 ||
+                    !string.Equals((string)cell.Worksheet.Parent.Name, (string)workbook.Name, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Invalid saved range.");
+                sheet = cell.Worksheet.Name;
+                address = cell.Address[false, false];
+            }
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException || ex is InvalidOperationException)
+            {
+                validation?.Add(location, "The saved worksheet or cell no longer exists or cannot be resolved.",
+                    "Select the intended cell and redefine this item, or remove it in Model Manager.");
+                // A broken tracked reference must not fall back to a plausible but different cell.
+                if (!string.IsNullOrEmpty(link)) address = "#REF!";
+            }
+        }
 
         private static dynamic GetOrCreateConfigSheet(
             dynamic workbook)

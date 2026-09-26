@@ -884,8 +884,8 @@ WorkbookPersistence.LoadModelForSimulation and invokes SimulationExecution only
 after validating it. The existing SimulationService.Run signature remains available
 as an exception-based compatibility wrapper. ResultsForm, distributions, percentiles,
 target semantics, sensitivity calculations, and result persistence are unchanged.
-Targets remain ResultsForm session state; there is no persisted pre-run target
-configuration to validate.
+At this stage targets remained ResultsForm session state. Section 31 records the
+subsequent addition of optional workbook target settings and their validation.
 
 ValidationResult holds ValidationError records with location, user message,
 suggested correction, and severity. Critical errors block execution before any
@@ -945,3 +945,85 @@ is still required for actual COM error marshaling, valid old/new workbooks, miss
 worksheets/ranges, protected/merged/array/spill inputs, formula restoration after a
 runtime failure, and both simulation entry points. No live workbook was modified
 as part of automated validation.
+
+
+## 31. Workbook Model Persistence Review and Confirmed Gaps
+
+The existing `__MonteCarloConfig` Very Hidden worksheet remains the persistence
+store. No replacement serialization format or speculative feature structures were
+introduced. Assumptions, forecasts, friendly names, all six distribution types,
+and all four distribution parameters were already persisted. Both the legacy
+three-parameter/name-in-column-8 layout and the four-parameter/name-in-column-9
+layout remain readable. Classifications, user-configured correlations, scenarios,
+and decision variables are not current product features; their persistence is
+Not Applicable / Future. Sensitivity correlations are calculated results, not
+saved correlation settings.
+
+The lifecycle is: Define/Edit commands update the model and call SaveModel;
+normal Excel Save writes metadata with the workbook; workbook open/activation
+reloads it; SimulationService.TryRun reloads and validates again before simulation.
+The add-in now uses the Excel interop event delegate types, logs registration
+failures through Trace, and attempts the initial load independently of registration.
+Normal restore uses the existing structured validation path and surfaces affected
+saved rows with correction guidance instead of silently skipping damaged entries.
+Unexpected restoration failures produce a safe message and Trace diagnostics.
+
+Confirmed gaps addressed:
+
+- Optional column 10 (`CellLink`) stores a hidden workbook-scoped name per input or
+  output (`_MC_Cell_` plus a GUID). Excel maintains these direct single-cell
+  references across worksheet renames and structural moves. Restore resolves the
+  tracked cell and refreshes the sheet/address used by simulation. Broken names,
+  deleted cells/sheets, invalid ranges, or references to another workbook produce
+  validation errors; broken tracked links never fall back to stale coordinates.
+  Existing legacy sheet/address references still load. Tracking starts when those
+  definitions are next saved; an earlier rename cannot safely be inferred.
+- Optional columns 11–14 store TargetConfigured, Target, TargetDirection and
+  RequestedConfidence. Null settings retain the existing P80 default; explicit
+  empty target settings preserve the no-target state. Accepted manual targets,
+  inclusive direction, and requested confidence restore without rounding or
+  changing percentile/probability calculations. Requested confidence remains
+  separate from actual success probability on a subsequent run. Restored targets
+  are fixed saved values; they are not recomputed from a new sample automatically.
+- With explicit user approval, Results restores and saves these settings when
+  accepted targets/directions change or the target is cleared. Draft numeric text
+  is not an accepted target. Updates touch only the matching forecast row and pin
+  the source workbook, including after Export Report activates another workbook.
+  Forecast rename/redefinition preserves valid target settings and tracked links.
+- Saved targets must be finite; direction must be supported; optional requested
+  confidence must be finite, 0–100, and accompanied by a target. Malformed saved
+  settings are reported and block simulation via the existing validation gate.
+- Text metadata columns use text formatting so names cannot become formulas.
+  Model metadata remains in the Very Hidden sheet and hidden direct cell names;
+  no user calculation cells are changed by saving/restoring the configuration.
+
+The user still needs to save the workbook normally to retain edits on disk.
+Charts, percentiles, probability/target algorithms, sensitivity, reports and the
+simulation mutation/restoration boundary are unchanged. Old add-in versions can
+read the original columns but may discard new optional fields when they save.
+
+Automated coverage links the actual WorkbookPersistence, ExcelSimulationWorkbook
+and SimulationService into Core.Tests behind a test-only Excel-DNA application
+boundary and in-memory workbook objects. Tests exercise every distribution and
+parameter, old layouts and upgrades, target/clear/direction/requested-confidence
+round trips, multiple forecasts, renamed/moved/broken/deleted links, corrupted
+metadata, workbook isolation, and source-workbook updates after report activation.
+A save/reopen/simulate test recreates workbook objects, clears/poisons in-memory
+model state, calls the production simulation entry point, verifies samples use
+restored parameters and verifies input restoration. These are adapter/lifecycle
+unit tests, not a real Excel file/COM save-close-reopen test.
+
+Validation: baseline 200 passed; final 238 passed, 0 failed/skipped (38 new cases).
+Complete Release solution build and Excel-DNA packaging succeeded in
+`artifacts/persistence-release`; both 32-bit and 64-bit packed XLLs were generated.
+Whitespace checks passed. Existing warnings remain in LicenseService (CS0162),
+AssumptionForm (CS8600), and WorkbookPersistence (CS8603); the latter is also emitted
+when its source is compiled into the test project.
+
+Still requires real Excel verification: save/close/reopen with old and new workbooks,
+workbook event subscriptions and switching, persisted target/cleared-target and
+confidence displays, sheet rename/move/delete and cell insertion/deletion handling,
+normal numeric 2042 versus actual Excel errors, hidden name/text-metadata behavior,
+protected/read-only save failures, and Export Report followed by a target update.
+No live workbook was modified for these automated tests. The generated packed XLLs
+were built and inspected, not loaded into Excel during this review.

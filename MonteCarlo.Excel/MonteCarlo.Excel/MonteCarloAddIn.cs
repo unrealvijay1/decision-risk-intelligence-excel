@@ -1,4 +1,6 @@
-﻿using System;
+using System;
+using System.Diagnostics;
+using System.Windows.Forms;
 using ExcelDna.Integration;
 
 namespace MonteCarlo.Excel
@@ -11,23 +13,25 @@ namespace MonteCarlo.Excel
         {
             try
             {
+                WorkbookPersistence.ReportRestoreProblem = message => MessageBox.Show(message,
+                    "Monte Carlo — model restore", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 excelApp = ExcelDnaUtil.Application;
 
                 // When a workbook is opened
                 excelApp.WorkbookOpen +=
-                    new Action<dynamic>(OnWorkbookOpen);
+                    new Microsoft.Office.Interop.Excel.AppEvents_WorkbookOpenEventHandler(OnWorkbookOpen);
 
                 // When user switches between workbooks
                 excelApp.WorkbookActivate +=
-                    new Action<dynamic>(OnWorkbookActivate);
-
-                // Load current workbook if one is already open
-                TryLoadActiveWorkbook();
+                    new Microsoft.Office.Interop.Excel.AppEvents_WorkbookActivateEventHandler(OnWorkbookActivate);
             }
-            catch
+            catch (Exception ex)
             {
                 // Do not prevent Excel from loading the add-in.
+                Trace.TraceError("Workbook event registration failed: {0}", ex);
             }
+            // Initial restoration must not depend on successful event registration.
+            TryLoadActiveWorkbook();
         }
 
 
@@ -38,10 +42,10 @@ namespace MonteCarlo.Excel
                 if (excelApp != null)
                 {
                     excelApp.WorkbookOpen -=
-                        new Action<dynamic>(OnWorkbookOpen);
+                        new Microsoft.Office.Interop.Excel.AppEvents_WorkbookOpenEventHandler(OnWorkbookOpen);
 
                     excelApp.WorkbookActivate -=
-                        new Action<dynamic>(OnWorkbookActivate);
+                        new Microsoft.Office.Interop.Excel.AppEvents_WorkbookActivateEventHandler(OnWorkbookActivate);
                 }
             }
             catch
@@ -49,6 +53,7 @@ namespace MonteCarlo.Excel
             }
 
             excelApp = null;
+            WorkbookPersistence.ReportRestoreProblem = null;
         }
 
 
@@ -84,12 +89,11 @@ namespace MonteCarlo.Excel
             {
                 WorkbookPersistence.LoadModel();
             }
-            catch
+            catch (Exception ex)
             {
-                // Intentionally silent.
-                //
-                // A workbook without a Monte Carlo model
-                // is perfectly valid.
+                Trace.TraceError("Model restore failed: {0}", ex);
+                MessageBox.Show("The saved Monte Carlo model could not be restored. Check the workbook and its model definitions in Model Manager.",
+                    "Monte Carlo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
     }

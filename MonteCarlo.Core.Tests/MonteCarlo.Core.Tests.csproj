@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -23,6 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/WorkbookPersistence.cs" Link="Persistence/WorkbookPersistence.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ExcelSimulationWorkbook.cs" Link="Persistence/ExcelSimulationWorkbook.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationService.cs" Link="Persistence/SimulationService.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationValidation.cs" Link="Simulation/SimulationValidation.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationWorkbook.cs" Link="Simulation/SimulationWorkbook.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationExecution.cs" Link="Simulation/SimulationExecution.cs" />

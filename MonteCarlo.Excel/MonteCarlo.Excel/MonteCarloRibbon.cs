@@ -274,6 +274,7 @@ namespace MonteCarlo.Excel
                 SimulationModel.Assumptions.Add(
                     new AssumptionDefinition
                     {
+                        CellLink = existingAssumption?.CellLink ?? "",
                         Name =
                             form.AssumptionName,
 
@@ -430,6 +431,8 @@ namespace MonteCarlo.Excel
                 SimulationModel.Forecasts.Add(
                     new ForecastDefinition
                     {
+                        CellLink = existingForecast?.CellLink ?? "",
+                        TargetSettings = existingForecast?.TargetSettings,
                         Name =
                             forecastName,
 

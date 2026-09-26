@@ -11,6 +11,7 @@ namespace MonteCarlo.Excel
     public class ResultsForm : Form
     {
         private readonly SimulationRunResult simulationResult;
+        private readonly object targetWorkbook;
 
         private ForecastRunResult currentForecastResult;
 
@@ -40,6 +41,7 @@ namespace MonteCarlo.Excel
         private TargetOrigin targetOrigin;
         private double? acceptedConfidence;
         private bool updatingTargetText;
+        private bool restoringTargetSettings;
         private double? currentTarget;
         private TargetDirection? currentDirection;
         private readonly System.Collections.Generic.Dictionary<ForecastRunResult, TargetDirection>
@@ -57,6 +59,8 @@ namespace MonteCarlo.Excel
         public ResultsForm(
             SimulationRunResult result)
         {
+            dynamic application = ExcelDna.Integration.ExcelDnaUtil.Application;
+            targetWorkbook = application.ActiveWorkbook;
             simulationResult =
                 result;
 
@@ -366,11 +370,12 @@ namespace MonteCarlo.Excel
             // An edited value is not the accepted probability target until Calculate.
             txtTarget.TextChanged += (_, _) =>
             {
-                if (updatingTargetText) return;
+                if (updatingTargetText || restoringTargetSettings) return;
                 targetOrigin = TargetOrigin.Manual;
                 acceptedConfidence = null;
                 if (lblRequiredTarget != null) lblRequiredTarget.Text = "";
                 currentTarget = null;
+                if (string.IsNullOrWhiteSpace(txtTarget.Text)) PersistTargetSettings();
                 RefreshSuccessDisplay();
                 histogramPanel.Invalidate();
             };
@@ -462,6 +467,7 @@ namespace MonteCarlo.Excel
                     forecastDirections[currentForecastResult] = currentDirection.Value;
                 else
                     forecastDirections.Remove(currentForecastResult);
+                PersistTargetSettings();
                 RefreshSuccessDisplay();
                 histogramPanel.Invalidate();
             };
@@ -844,12 +850,14 @@ namespace MonteCarlo.Excel
 
         private void RefreshForecastDisplay()
         {
+            restoringTargetSettings = true;
+            var savedTarget = currentForecastResult.Forecast.TargetSettings;
             targetOrigin = TargetOrigin.Manual;
             acceptedConfidence = null;
             lblRequiredTarget.Text = "";
             currentTarget = null;
             currentDirection = forecastDirections.TryGetValue(currentForecastResult, out var direction)
-                ? direction : null;
+                ? direction : savedTarget?.Direction;
             restoringDirection = true;
             cmbSuccessDirection.SelectedIndex = currentDirection switch
             {
@@ -883,10 +891,17 @@ namespace MonteCarlo.Excel
                         CultureInfo.CurrentCulture);
 
 
-            CalculateProbability(
-                null,
-                EventArgs.Empty);
-
+            if (savedTarget == null) CalculateProbability(null, EventArgs.Empty);
+            else
+            {
+                currentTarget = savedTarget.Target;
+                acceptedConfidence = savedTarget.RequestedConfidence;
+                targetOrigin = acceptedConfidence.HasValue ? TargetOrigin.Confidence : TargetOrigin.Manual;
+                txtTarget.Text = currentTarget?.ToString("R", CultureInfo.CurrentCulture) ?? "";
+                if (acceptedConfidence.HasValue) txtConfidence.Text = acceptedConfidence.Value.ToString("R", CultureInfo.CurrentCulture);
+                RefreshSuccessDisplay();
+            }
+            restoringTargetSettings = false;
 
             histogramPanel.Invalidate();
 
@@ -948,8 +963,25 @@ namespace MonteCarlo.Excel
             acceptedConfidence = null;
             lblRequiredTarget.Text = "";
             currentTarget = double.IsFinite(target) ? target : null;
+            PersistTargetSettings();
             RefreshSuccessDisplay();
 
+        }
+
+        private void PersistTargetSettings()
+        {
+            if (restoringTargetSettings) return;
+            try
+            {
+                WorkbookPersistence.SaveTargetSettings(currentForecastResult.Forecast,
+                    new ForecastTargetSettings(currentTarget, currentDirection, acceptedConfidence), targetWorkbook);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError("Target settings could not be saved: {0}", ex);
+                MessageBox.Show("The target settings could not be saved to this workbook. Check that the workbook is editable and the forecast still exists.",
+                    "Monte Carlo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void CalculateConfidenceTarget()
@@ -984,6 +1016,7 @@ namespace MonteCarlo.Excel
             currentTarget = target;
             targetOrigin = TargetOrigin.Confidence;
             acceptedConfidence = confidence;
+            PersistTargetSettings();
             RefreshSuccessDisplay();
             histogramPanel.Invalidate();
             return true;
