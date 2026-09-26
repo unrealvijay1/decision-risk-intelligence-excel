@@ -875,3 +875,73 @@ Offscreen rendering did not provide a usable preview; manual Excel visual checks
 remain required for hierarchy, both chart/calculation modes, both directions,
 missing target, forecast switching, long names/large values, marker overlap,
 Details, Sensitivity, Export Report, and Windows 100%/125%/150% scaling.
+
+## 30. Simulation Validation and User-Friendly Errors
+
+The Ribbon entry remains OnRunSimulation. After licensing and the settings dialog,
+it calls SimulationService.TryRun. This loads the saved configuration with
+WorkbookPersistence.LoadModelForSimulation and invokes SimulationExecution only
+after validating it. The existing SimulationService.Run signature remains available
+as an exception-based compatibility wrapper. ResultsForm, distributions, percentiles,
+target semantics, sensitivity calculations, and result persistence are unchanged.
+Targets remain ResultsForm session state; there is no persisted pre-run target
+configuration to validate.
+
+ValidationResult holds ValidationError records with location, user message,
+suggested correction, and severity. Critical errors block execution before any
+sample writes or Excel setting changes. The rules include:
+
+- A positive trial count, at least one assumption, and at least one forecast.
+- Required finite numeric distribution parameters; zero remains a valid mean or
+  bound and is never used as a substitute for missing required saved parameters.
+- Existing DistributionPreview.Validate rules: positive Normal/Lognormal standard
+  deviation; ordered Uniform/Beta bounds; ordered Triangular/PERT bounds with mode
+  inside them; positive Beta shape parameters; supported distributions only.
+- Existing worksheets and single-cell references in the configured workbook/sheet,
+  finite numeric cell values, and no Excel error values. Excel's IsError is checked
+  on the Range before converting Value2, avoiding confusion between error codes and
+  ordinary numeric values. Runtime forecast checks include cell and trial context.
+- No duplicate physical assumption cells, protected locked inputs, merged inputs,
+  array-formula inputs, or spilled-formula inputs.
+- Invalid/unknown saved item types, missing references, and malformed parameters
+  are reported rather than silently skipped for simulation. Blank rows do not
+  truncate simulation validation. Both existing saved layouts remain readable;
+  the older layout's absent Parameter4 remains valid for non-Beta distributions.
+  The normal LoadModel and SaveModel schema are retained.
+
+SimulationExecution contains the existing sampling loop behind small
+ISimulationWorkbook/ISimulationCell interfaces. ExcelSimulationWorkbook pins the
+workbook and resolved cell objects for the run. All originals and settings are
+captured before mutation. Ordinary formulas are captured/restored as Formula2
+(Formula on older Excel without that property); plain values use Value2. Array
+and spill inputs are rejected because changing their single-cell representation
+cannot safely preserve the entire range.
+
+ScreenUpdating, EnableEvents, sample writes, calculations, and progress updates
+are inside a try/finally cleanup boundary. Cleanup attempts every original cell,
+recalculation, and every saved application setting independently, retrying a failed
+operation once. A persistent restoration failure prevents success and identifies
+the affected cells/settings with instructions to check before saving. No code can
+guarantee restoration if Excel closes or permanently refuses writes; such a failure
+is explicitly reported rather than hidden. Original exceptions and cleanup errors
+are retained on the structured outcome.
+
+The older MC_RUN_PROJECTMODEL command also uses this execution boundary with its
+same fixed PERT inputs, output-cell-only recalculation, and existing report/percentile
+calculations. Both simulation entry points show safe user messages and send technical
+exceptions to System.Diagnostics.Trace. There was no durable logging subsystem;
+Trace output requires an attached/configured listener and no new log store is added.
+
+Tests link the non-COM validation/execution files into the existing test project and
+use fake workbook/cell adapters to exercise validation gates, formula/value capture,
+partial writes, runtime formula errors, setup failures, restoration retries, failed
+cell/settings cleanup, and preservation of original settings. Baseline: 139 passing
+tests. Final: 200 passing tests, 0 failures/skips (61 new cases).
+
+The full solution and both packed XLLs build in artifacts/validation-build because
+Excel has the normal Debug packed XLL locked. Three existing warnings remain in
+LicenseService, AssumptionForm, and WorkbookPersistence. Manual Excel verification
+is still required for actual COM error marshaling, valid old/new workbooks, missing
+worksheets/ranges, protected/merged/array/spill inputs, formula restoration after a
+runtime failure, and both simulation entry points. No live workbook was modified
+as part of automated validation.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -607,38 +607,7 @@ namespace MonteCarlo.Excel
 
 
                 // =================================================
-                // LOAD MODEL
-                // =================================================
-
-                WorkbookPersistence.LoadModel();
-
-
-                if (SimulationModel.Assumptions.Count == 0)
-                {
-                    MessageBox.Show(
-                        "No saved assumptions were found.",
-                        "Monte Carlo",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-
-                    return;
-                }
-
-
-                if (SimulationModel.Forecasts.Count == 0)
-                {
-                    MessageBox.Show(
-                        "No saved forecasts were found.",
-                        "Monte Carlo",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-
-                    return;
-                }
-
-
-                // =================================================
-                // SETTINGS
+                // SIMULATION SETTINGS
                 // =================================================
 
                 using SimulationSettingsForm settingsForm =
@@ -666,9 +635,16 @@ namespace MonteCarlo.Excel
                 // RUN SIMULATION
                 // =================================================
 
-                SimulationRunResult simulationResult =
-                    SimulationService.Run(
-                        trials);
+                SimulationExecutionResult outcome = SimulationService.TryRun(trials);
+                if (!outcome.Succeeded)
+                {
+                    if (outcome.DiagnosticException != null)
+                        System.Diagnostics.Trace.TraceError(outcome.DiagnosticException.ToString());
+                    MessageBox.Show(outcome.UserMessage, "Monte Carlo — Check simulation",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                SimulationRunResult simulationResult = outcome.Result!;
 
 
                 // =================================================
@@ -684,8 +660,9 @@ namespace MonteCarlo.Excel
             }
             catch (Exception ex)
             {
-                ShowError(
-                    ex);
+                System.Diagnostics.Trace.TraceError(ex.ToString());
+                MessageBox.Show("The simulation could not finish. Check that the workbook is open and available, then try again.",
+                    "Monte Carlo", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

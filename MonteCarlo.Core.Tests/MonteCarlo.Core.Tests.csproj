@@ -23,6 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationValidation.cs" Link="Simulation/SimulationValidation.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationWorkbook.cs" Link="Simulation/SimulationWorkbook.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationExecution.cs" Link="Simulation/SimulationExecution.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationRunResult.cs" Link="Results/SimulationRunResult.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationModel.cs" Link="Results/SimulationModel.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SensitivityResult.cs" Link="Results/SensitivityResult.cs" />

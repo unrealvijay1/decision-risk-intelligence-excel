@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ExcelDna.Integration;
 
 namespace MonteCarlo.Excel
@@ -72,6 +72,7 @@ namespace MonteCarlo.Excel
 
             int row =
                 2;
+
 
 
             // =====================================================
@@ -221,7 +222,16 @@ namespace MonteCarlo.Excel
         // LOAD MODEL FROM WORKBOOK
         // =========================================================
 
-        public static void LoadModel()
+        public static void LoadModel() => LoadModelCore(null);
+
+        public static ValidationResult LoadModelForSimulation()
+        {
+            var validation = new ValidationResult();
+            LoadModelCore(validation);
+            return validation;
+        }
+
+        private static void LoadModelCore(ValidationResult? validation)
         {
             dynamic excelApp =
                 ExcelDnaUtil.Application;
@@ -260,6 +270,10 @@ namespace MonteCarlo.Excel
                 2;
 
 
+            // Simulation validation must not silently truncate a damaged saved model at a blank row.
+            int lastConfigRow = validation == null ? 0 :
+                (int)configSheet.UsedRange.Row + (int)configSheet.UsedRange.Rows.Count - 1;
+
             while (true)
             {
                 object typeValue =
@@ -270,7 +284,15 @@ namespace MonteCarlo.Excel
 
                 if (typeValue == null)
                 {
-                    break;
+                    if (validation == null || row > lastConfigRow) break;
+                    bool hasData = false;
+                    for (int column = 2; column <= (newLayout ? 9 : 8); column++)
+                        if (configSheet.Cells[row, column].Value2 != null) hasData = true;
+                    if (hasData)
+                        validation.Add($"Saved model row {row}", "The item type is missing.",
+                            "Use Model Manager to redefine this saved assumption or forecast.");
+                    row++;
+                    continue;
                 }
 
 
@@ -289,7 +311,7 @@ namespace MonteCarlo.Excel
                     LoadAssumption(
                         configSheet,
                         row,
-                        newLayout);
+                        newLayout, validation);
                 }
 
 
@@ -302,10 +324,13 @@ namespace MonteCarlo.Excel
                     LoadForecast(
                         configSheet,
                         row,
-                        newLayout);
+                        newLayout, validation);
                 }
 
 
+                else if (validation != null)
+                    validation.Add($"Saved model row {row}", "The item type is not recognized.",
+                        "Use Model Manager to remove or redefine this saved item.");
                 row++;
             }
         }
@@ -415,7 +440,7 @@ namespace MonteCarlo.Excel
         private static void LoadAssumption(
             dynamic configSheet,
             int row,
-            bool newLayout)
+            bool newLayout, ValidationResult? validation)
         {
             string sheetName =
                 Convert.ToString(
@@ -506,6 +531,19 @@ namespace MonteCarlo.Excel
             }
 
 
+            if (validation != null)
+            {
+                string location = $"Saved assumption row {row} ({sheetName}!{cellAddress})";
+                DistributionType savedDistribution = Enum.TryParse(distributionText, true, out DistributionType parsed)
+                    ? parsed : (DistributionType)(-1);
+                object?[] raw = new object?[4];
+                for (int i = 0; i < (newLayout ? 4 : 3); i++)
+                    raw[i] = ExcelSimulationWorkbook.ReadCellValue(ExcelDnaUtil.Application, configSheet.Cells[row, 5 + i]);
+                SimulationValidation.ValidateParameters(validation, location, savedDistribution, raw);
+                if (string.IsNullOrWhiteSpace(sheetName) || string.IsNullOrWhiteSpace(cellAddress))
+                    validation.Add(location, "The worksheet or cell reference is missing.", "Redefine the assumption using a single input cell.");
+            }
+
             if (
                 string.IsNullOrWhiteSpace(
                     sheetName)
@@ -571,7 +609,7 @@ namespace MonteCarlo.Excel
         private static void LoadForecast(
             dynamic configSheet,
             int row,
-            bool newLayout)
+            bool newLayout, ValidationResult? validation)
         {
             string sheetName =
                 Convert.ToString(
@@ -611,6 +649,10 @@ namespace MonteCarlo.Excel
                     ?? "";
             }
 
+
+            if (validation != null && (string.IsNullOrWhiteSpace(sheetName) || string.IsNullOrWhiteSpace(cellAddress)))
+                validation.Add($"Saved forecast row {row}", "The worksheet or output cell reference is missing.",
+                    "Select the output cell and choose Define Forecast.");
 
             if (
                 string.IsNullOrWhiteSpace(

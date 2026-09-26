@@ -1,4 +1,4 @@
-﻿using ExcelDna.Integration;
+using ExcelDna.Integration;
 using ExcelInterop = Microsoft.Office.Interop.Excel;
 
 namespace MonteCarlo.Excel
@@ -20,103 +20,19 @@ namespace MonteCarlo.Excel
             ExcelInterop.Worksheet worksheet =
                 (ExcelInterop.Worksheet)excelApp.ActiveSheet;
 
-            ExcelInterop.Range durationCell =
-                worksheet.Range["B2"];
-
-            ExcelInterop.Range rateCell =
-                worksheet.Range["B3"];
-
-            ExcelInterop.Range outputCell =
-                worksheet.Range["B5"];
-
-            object originalDuration =
-                durationCell.Value2;
-
-            object originalRate =
-                rateCell.Value2;
-
-            bool originalScreenUpdating =
-                excelApp.ScreenUpdating;
-
-            bool originalEnableEvents =
-                excelApp.EnableEvents;
-
-            double[] results =
-                new double[trials];
-
-            try
+            var assumptions = new AssumptionDefinition[]
             {
-                excelApp.ScreenUpdating = false;
-                excelApp.EnableEvents = false;
-
-                for (int i = 0; i < trials; i++)
-                {
-                    double duration =
-                        MonteCarlo.Core
-                            .PertDistribution
-                            .Sample(
-                                80,
-                                100,
-                                160);
-
-                    double dailyRate =
-                        MonteCarlo.Core
-                            .PertDistribution
-                            .Sample(
-                                5000,
-                                6000,
-                                8000);
-
-                    durationCell.Value2 =
-                        duration;
-
-                    rateCell.Value2 =
-                        dailyRate;
-
-                    // Recalculate ONLY the output cell
-                    outputCell.Calculate();
-
-                    object outputValue =
-                        outputCell.Value2;
-
-                    if (outputValue == null)
-                    {
-                        throw new Exception(
-                            "B5 returned no value during simulation.");
-                    }
-
-                    results[i] =
-                        Convert.ToDouble(
-                            outputValue);
-
-                    // Show progress occasionally
-                    if (i % 10 == 0)
-                    {
-                        excelApp.StatusBar =
-                            $"Monte Carlo simulation: {i + 1} / {trials}";
-                    }
-                }
-            }
-            finally
-            {
-                // Restore inputs
-                durationCell.Value2 =
-                    originalDuration;
-
-                rateCell.Value2 =
-                    originalRate;
-
-                outputCell.Calculate();
-
-                excelApp.ScreenUpdating =
-                    originalScreenUpdating;
-
-                excelApp.EnableEvents =
-                    originalEnableEvents;
-
-                excelApp.StatusBar =
-                    false;
-            }
+                new() { Name = "Duration", SheetName = worksheet.Name, CellAddress = "B2",
+                    Distribution = DistributionType.Pert, Parameter1 = 80, Parameter2 = 100, Parameter3 = 160 },
+                new() { Name = "Rate", SheetName = worksheet.Name, CellAddress = "B3",
+                    Distribution = DistributionType.Pert, Parameter1 = 5000, Parameter2 = 6000, Parameter3 = 8000 }
+            };
+            var forecast = new ForecastDefinition { SheetName = worksheet.Name, CellAddress = "B5" };
+            var workbook = new ExcelSimulationWorkbook(excelApp, worksheet.Parent,
+                () => worksheet.Range["B5"].Calculate());
+            var outcome = SimulationExecution.Run(trials, assumptions, new[] { forecast }, workbook);
+            if (!outcome.Succeeded) throw new SimulationRunException(outcome);
+            double[] results = outcome.Result!.ForecastResults[0].Values;
 
             Array.Sort(results);
 
