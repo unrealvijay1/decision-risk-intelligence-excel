@@ -4,7 +4,7 @@ using ExcelDna.Integration;
 
 namespace MonteCarlo.Excel
 {
-    public static class WorkbookPersistence
+    public static partial class WorkbookPersistence
     {
         private const string ConfigSheetName =
             "__MonteCarloConfig";
@@ -42,10 +42,14 @@ namespace MonteCarlo.Excel
             foreach (var forecast in SimulationModel.Forecasts)
                 forecast.CellLink = EnsureCellLink(workbook, forecast.CellLink, forecast.SheetName, forecast.CellAddress);
             var originalFills = ModelCellHighlight.BeforeSave(workbook, configSheet);
+            var savedScenarios = CaptureScenarioBlock(configSheet);
+            var savedCorrelations = CorrelationsForModelSave(configSheet);
             // Definition saves preserve the separate workbook settings block verbatim, even if malformed.
             object?[] savedSettings = new object?[4];
             for (int i = 0; i < 4; i++) savedSettings[i] = configSheet.Cells[1, 17 + i].Value2;
             configSheet.Cells.Clear();
+            RestoreScenarioBlock(configSheet, savedScenarios);
+            WriteCorrelationBlock(configSheet, savedCorrelations);
             for (int i = 0; i < 4; i++) configSheet.Cells[1, 17 + i].Value2 = savedSettings[i];
             // Text metadata must never become worksheet formulas.
             configSheet.Range["A:D"].NumberFormat = "@";
@@ -256,6 +260,19 @@ namespace MonteCarlo.Excel
         {
             var validation = new ValidationResult();
             LoadModelCore(validation, restoreHighlights);
+            try
+            {
+                dynamic app = ExcelDnaUtil.Application;
+                object? workbook = app.ActiveWorkbook;
+                if (workbook != null)
+                {
+                    var ids = SimulationModel.Assumptions.Select(ScenarioSimulationService.Identity).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    foreach (var r in LoadCorrelations(workbook))
+                        if (!ids.Contains(r.AssumptionA) || !ids.Contains(r.AssumptionB))
+                            validation.Add("Assumption Correlations", "A correlated assumption reference is missing.", "Open Assumption Correlations and remove or replace the relationship.");
+                }
+            }
+            catch (ArgumentException ex) { validation.Add("Assumption Correlations", ex.Message, "Review saved correlation configuration."); }
             return validation;
         }
 
@@ -442,6 +459,7 @@ namespace MonteCarlo.Excel
 
 
             ModelCellHighlight.BeforeSave(workbook, configSheet, clear: true);
+            WriteCorrelationBlock(configSheet, new object?[CaptureCorrelationBlock(configSheet).GetLength(0), 2]);
             bool originalDisplayAlerts =
                 excelApp.DisplayAlerts;
 
@@ -452,7 +470,7 @@ namespace MonteCarlo.Excel
                     false;
 
 
-                if (configSheet.Cells[1, 17].Value2 != null)
+                if (configSheet.Cells[1, 17].Value2 != null || configSheet.Cells[1, 22].Value2 != null)
                     SaveModel(); // Empty definition lists, retaining workbook-level settings.
                 else configSheet.Delete();
             }

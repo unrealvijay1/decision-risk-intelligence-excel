@@ -33,6 +33,7 @@ namespace MonteCarlo.Excel
 
         <group id='ModelSetupGroup'
                label='Model Setup'>
+          <button id='CorrelationsButton' label='Correlations...' size='normal' onAction='OnCorrelations'/>
 
           <button
               id='DefineAssumptionButton'
@@ -84,6 +85,7 @@ namespace MonteCarlo.Excel
               getImage='GetRibbonImage'
               onAction='OnRunSimulation'/>
           <button id='SimulationSettingsButton' label='Simulation Settings' size='normal' onAction='OnSimulationSettings'/>
+          <button id='ScenarioAnalysisButton' label='Scenario Analysis' size='normal' onAction='OnScenarioAnalysis'/>
 
           <button
               id='ReloadModelButton'
@@ -509,6 +511,36 @@ namespace MonteCarlo.Excel
         // =========================================================
         // MODEL MANAGER
         // =========================================================
+
+        public void OnCorrelations(IRibbonControl control)
+        {
+            try
+            {
+                LicenseService.EnsureAccess();
+                dynamic app = ExcelDnaUtil.Application;
+                object workbook = app.ActiveWorkbook ?? throw new InvalidOperationException("Open your model workbook first.");
+                WorkbookPersistence.LoadModelForSimulation(restoreHighlights: false);
+                var assumptions = SimulationModel.Assumptions.ToArray();
+                using var form = new AssumptionCorrelationsForm(assumptions, WorkbookPersistence.LoadCorrelations(workbook),
+                    values => WorkbookPersistence.SaveCorrelations(workbook, assumptions, values));
+                form.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError(ex.ToString());
+                MessageBox.Show(ex.Message, "Assumption Correlations", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        public void OnScenarioAnalysis(IRibbonControl control)
+        {
+            try { ScenarioAnalysisCommand.Show(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError(ex.ToString());
+                MessageBox.Show(ex.Message, "Scenario Analysis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
 
         public void OnModelManager(
             IRibbonControl control)

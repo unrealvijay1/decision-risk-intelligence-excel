@@ -1,1029 +1,450 @@
-# Monte Carlo for Excel --- Project Context
-
-**Purpose:** Permanent handover/context document for continuing
-development of the Monte Carlo for Excel product across future coding
-sessions.
-
-**Last updated:** 26 September 2026\
-**Current installer version:** 0.1.0\
-**Primary platform:** Windows / Microsoft Excel 64-bit\
-**Technology:** C# / .NET 10 / Excel-DNA
-
-------------------------------------------------------------------------
-
-## 1. Product Overview
-
-Monte Carlo for Excel is an Excel add-in for performing Monte Carlo
-simulation directly inside Microsoft Excel.
-
-The goal is to evolve it into a commercially distributable Excel product
-with a simple workflow:
-
-1.  Define model assumptions in Excel.
-2.  Define forecast/output cells.
-3.  Run Monte Carlo simulation.
-4.  Review simulation results.
-5.  Export/report results.
-6.  Use a 30-day trial initially.
-7.  Activate a paid Professional or Enterprise license using an offline
-    signed license code.
-
-The product is currently being developed locally in Visual Studio and is
-moving toward packaged commercial distribution.
-
-------------------------------------------------------------------------
-
-## 2. Solution / Repository Structure
-
-The Git repository root is intended to be:
-
-`C:\montecarlo\`
-
-Important projects/components include:
-
--   **MonteCarlo.Core** --- core simulation/domain logic.
--   **MonteCarlo.Excel** --- Excel-DNA add-in, Ribbon, UI, Excel
-    integration and licensing.
--   **MonteCarlo.Core.Tests** --- platform-independent automated tests.
--   **MonteCarlo.LicenseGenerator** --- private utility used by the
-    developer to generate signed customer licenses.
--   **Installer** --- Inno Setup installer scripts and generated
-    installer output.
-
-The LicenseGenerator must remain independent from the Excel add-in. The
-Excel project must never reference or distribute the LicenseGenerator's
-private signing key.
-
-------------------------------------------------------------------------
-
-## 3. Current Product Capabilities
-
-The product has already progressed beyond a proof of concept.
-Current/implemented areas include:
-
--   Excel-DNA based Excel add-in.
--   Custom **Monte Carlo** Ribbon.
--   32×32 Ribbon images/icons.
--   Define Assumption workflow.
--   Define Forecast workflow.
--   Monte Carlo simulation execution.
--   Simulation results/dashboard.
--   Forecast target marker and P50/P80 value labels with overlap handling.
--   Target success/failure visualization with explicit success-direction
-    selection and empirical success probability (see section 26).
--   Report exporter.
--   Distribution-related functionality/framework.
--   Licensing UI.
--   30-day local trial.
--   Offline signed customer licenses.
--   Professional and Enterprise license types.
--   Packed Excel-DNA XLL release artifact.
--   Initial Inno Setup installer.
-
-Correlation between assumptions is intentionally deferred for a later
-development milestone.
-
-------------------------------------------------------------------------
-
-## 4. Ribbon / Excel UI
-
-The add-in has a dedicated **Monte Carlo** Ribbon tab.
-
-Ribbon commands include functionality such as:
-
--   Define Assumption
--   Define Forecast
--   Run Simulation
--   Results/reporting functions
--   Licensing
-
-Custom 32×32 images have been added to improve the Ribbon presentation.
-
-When adding future features, preserve the existing Ribbon organization
-and avoid overcrowding it. New commands should be grouped according to
-the user workflow rather than simply appended.
-
-------------------------------------------------------------------------
-
-## 5. Licensing Architecture
-
-### Current licensing strategy
-
-Licensing is deliberately local/offline for Phase 1.
-
-Normal customer flow:
-
-`Install → 30-day Trial → Purchase → Receive signed license → Activate → Professional/Enterprise`
-
-There is currently no required licensing server or internet activation.
-
-### License types
-
-The licensing model supports:
-
--   **Development**
--   **Trial**
--   **Professional**
--   **Enterprise**
-
-Development mode exists for development/testing but should be disabled
-when testing or distributing the customer experience.
-
-### Main licensing classes
-
-Inside `MonteCarlo.Excel\Licensing`, the important classes include:
-
--   `LicenseInfo.cs`
--   `LicenseService.cs`
--   `LicenseStorage.cs`
--   `LocalLicenseValidator.cs`
--   `TrialService.cs`
--   `ActivationForm.cs`
--   `LicenseForm.cs`
-
-------------------------------------------------------------------------
-
-## 6. Signed Offline Licenses
-
-Customer licenses use asymmetric RSA signing.
-
-The conceptual format is:
-
-`MC1.<base64url-payload>.<base64url-signature>`
-
-The signed payload contains information such as:
-
--   License ID
--   Customer name
--   Edition
--   Issued date
--   Expiry date
-
-### Critical security rule
-
-**The private RSA key must NEVER be distributed with the Excel add-in or
-committed to Git.**
-
-Architecture:
-
-`LicenseGenerator + PRIVATE KEY → signs customer license`
-
-`Excel Add-in + PUBLIC KEY → verifies customer license`
-
-The add-in can therefore verify a legitimate license offline without
-containing the secret needed to generate one.
-
-### Case sensitivity
-
-Signed license codes are **case-sensitive**.
-
-Do not call:
-
-`ToUpperInvariant()`
-
-or use an activation textbox configured with:
-
-`CharacterCasing.Upper`
-
-The activation UI was specifically corrected to use normal character
-casing because uppercasing the Base64URL payload/signature invalidates
-the RSA signature.
-
-------------------------------------------------------------------------
-
-## 7. License Generator
-
-The private license-generation utility is:
-
-`MonteCarlo.LicenseGenerator`
-
-It generates customer licenses using the private RSA key.
-
-The generator asks for information such as:
-
--   Customer name
--   Professional or Enterprise edition
--   Expiry date
-
-It generates a unique license ID and signed `MC1...` license code.
-
-Generated customer license files are stored under a local `Licenses`
-output directory.
-
-The LicenseGenerator and private signing material are **developer-only
-assets** and must never be included in the customer installer.
-
-------------------------------------------------------------------------
-
-## 8. Key Management
-
-The RSA key pair consists of:
-
--   `private-key.pem`
--   `public-key.pem`
-
-### Private key
-
-`private-key.pem` is the master signing credential.
-
-Rules:
-
--   Never distribute it.
--   Never place it inside `MonteCarlo.Excel`.
--   Never commit it to Git.
--   Maintain a secure backup outside the repository.
--   Loss of the production private key would prevent issuance of new
-    licenses compatible with that signing identity.
-
-### Public key
-
-The public key is safe to distribute.
-
-A copy is embedded in `MonteCarlo.Excel` as an **Embedded Resource** and
-is used by `LocalLicenseValidator` to verify customer license
-signatures.
-
-------------------------------------------------------------------------
-
-## 9. Git Ignore / Sensitive Files
-
-The repository `.gitignore` is located at:
-
-`C:\montecarlo\.gitignore`
-
-Licensing-related exclusions were added so sensitive/generated data is
-not committed.
-
-The intended exclusions include:
-
-``` gitignore
-# Monte Carlo licensing
-# Never commit signing keys
-**/Keys/
-**/private-key.pem
-
-# Never commit generated customer licenses
-**/Licenses/
+# Monte Carlo for Excel — Project Context
+
+Last reconciled with source and tests: **2026-09-27**.
+
+This is the persistent project handoff and source of truth for future Codex sessions.
+Read it before implementation. Verify relevant source before changing behavior; reconcile
+discrepancies rather than relying on previous chat history. After every implementation
+task, update affected sections when future sessions need the information, remove obsolete
+claims, and verify this document against the final code. Keep current decisions and
+capabilities, not a change log, temporary debugging details or build transcripts.
+
+## Architecture and repository map
+
+Windows Excel add-in using C#/.NET 10, Excel-DNA 1.9 and WinForms/GDI+.
+Primary customer platform is **64-bit Excel**; builds also produce an x86 XLL.
+
+| Location (relative to repository root) | Responsibility |
+| --- | --- |
+| `MonteCarlo.Core/` | Sampling, fitting/preview, probability/CDF, chart helpers and scenario domain/transformation rules; `net10.0` |
+| `MonteCarlo.Excel/MonteCarlo.Excel/` | Ribbon, model/UI, Excel COM adapters, persistence, execution, reporting and licensing; `net10.0-windows` |
+| `MonteCarlo.Excel/MonteCarlo.Excel.slnx` | Main solution |
+| `MonteCarlo.Core.Tests/` | xUnit; links production non-UI Excel source against workbook doubles |
+| `MonteCarlo.Results.LayoutChecks/` | Separate Windows-only hidden WinForms layout/rendering harness |
+| `MonteCarlo.LicenseGenerator/` | Developer-only offline license signing utility |
+| `Installer/MonteCarloForExcel.iss` | Per-user Inno Setup installer |
+
+`SimulationModel` holds static in-memory assumption/forecast lists for the active workbook.
+`WorkbookPersistence` reloads them on workbook open/activation, explicit Reload Model and
+before simulation. `SimulationService` coordinates restore/settings and execution;
+`SimulationExecution` owns validation and mutation/restoration through `ISimulationWorkbook`
+and `ISimulationCell`. `ExcelSimulationWorkbook` implements the Excel COM boundary.
+Results use `SimulationRunResult` with one `ForecastRunResult` per forecast. Each successful
+Ribbon run opens a fresh modal `ResultsForm`; chart/calculator actions do not rerun simulation.
+
+## Implemented model workflows
+
+- Ribbon groups: Model Setup (Define Assumption, Define Forecast, Model Manager, Correlations, Clear
+  Cell Definition); Simulation (Run Simulation, Simulation Settings, Scenario Analysis, Reload Model);
+  Maintenance (Clear Model); Product (License). Export Report is in Results.
+- Six distributions: Normal (mean, SD), Lognormal (log mean, log SD), Uniform (min, max),
+  Triangular and PERT (min, most likely, max), Beta (min, max, alpha, beta). Preserve
+  parameter order across UI, sampling and persistence.
+- Define/Edit Assumption provides analytical previews of unsaved parameters with inline
+  validation. Previewing neither samples nor writes Excel. Historical-data fitting
+  supports Normal, Lognormal, Uniform and Triangular, ranked by AIC then KS; fitting
+  does not support all six sampling distributions.
+- Model Manager supports viewing, navigation, editing and confirmed deletion.
+  `ForecastEditForm` uses detached `ForecastEditDraft` for name, explicit target,
+  direction, default P80 or No Target. Cancel/invalid drafts do not apply changes.
+  Unchanged target/direction retain requested confidence; changes clear its provenance.
+- `ModelDefinitionDeletion` is shared by Model Manager and Clear Cell Definition.
+  The Ribbon action accepts one cell only, identifies the definition in confirmation,
+  and preserves values/formulas. Ordinary cells are an informational no-op; invalid
+  selections are rejected. Lookup loads without highlighting and restores prior
+  in-memory lists on cancellation/no-op. Confirmed deletion saves remaining definitions.
+- Assumption Correlations supports model-level input relationships. Classifications and
+  decision-variable management are not implemented.
+
+## Workbook persistence and cell highlighting
+
+Storage is the **Very Hidden `__MonteCarloConfig` worksheet**, with headers in row 1
+and definition rows starting at row 2. Normal Excel Save is required for disk persistence;
+writing configuration does not automatically save the workbook file.
+
+| Columns | Current meaning |
+| --- | --- |
+| A:D (1–4) | Type, Sheet, Cell, Distribution |
+| E:H (5–8) | Parameter1–Parameter4 |
+| I (9) | Friendly Name |
+| J (10) | CellLink: hidden workbook-scoped `_MC_Cell_` GUID name |
+| K:N (11–14) | TargetConfigured, Target, TargetDirection, RequestedConfidence |
+| O (15) | `OriginalFillV1`: original Interior snapshot as JSON |
+| Q:T (17–20), row 1 only | `SimulationSettingsV1`, trial count, seed mode, optional fixed seed |
+| V:W (22–23) | V1=`ScenarioDefinitionsV2`, W1=JSON chunk count; V2 onward holds 30,000-character chunks; version V1 remains readable |
+| Y:Z (25–26) | Y1=`AssumptionCorrelationsV1`, Z1=chunk count; Y2 onward holds 30,000-character JSON chunks |
+
+The legacy three-parameter/name-in-H and four-parameter/name-in-I layouts remain readable.
+Optional metadata is backward compatible. Text metadata is written as text to avoid formula
+interpretation. Invalid saved definitions/targets and broken references surface structured
+validation errors and block simulation. Event registration/restore failures have safe
+messages and Trace diagnostics; initial restore is independent of event registration.
+
+Hidden names track direct single-cell references through sheet renames and structural
+edits. Restore resolves current sheet/address. Broken/deleted/cross-workbook links never
+fall back to stale coordinates. Legacy coordinate-only definitions acquire links on save;
+renames before tracking cannot safely be inferred. Highlight resolution uses these names
+on load/save, not continuous cell-movement monitoring.
+
+`ModelCellHighlight` centralizes light blue Assumption and light green Forecast fills.
+Create/edit/save/restore apply the appropriate fill, capturing original Interior before
+first application. Repeated edits retain that snapshot. Deletion restores it and removes
+metadata; no-fill, solid, theme/tint, pattern and gradient fills are represented. Only
+Interior is intentionally changed, never values, formulas, number formats, font, borders,
+alignment or protection. Legacy rows without snapshots capture their current fill before
+highlighting. Formatting failures are best-effort and traced: unavailable/protected/deleted
+cells can prevent restoration, and an original fill never captured cannot be reconstructed.
+
+Definition saves preserve the separate settings and scenario blocks verbatim, even if malformed.
+Clear Model restores definition fills and removes definitions, retaining
+explicitly saved simulation settings and scenarios. Without either block it deletes the config
+sheet. Deleted definitions lose their saved CellLink metadata, but the current code does
+not remove the corresponding hidden workbook names; unused names can remain. Older add-in
+versions may discard newer optional metadata when saving.
+
+### Persisted forecast targets
+
+- `ForecastDefinition.TargetSettings == null` means the historical P80 default.
+  A non-null `ForecastTargetSettings` with null Target means explicit **No Target**.
+- Accepted Results targets, direction changes and target clearing update only the
+  matching saved forecast row. Draft numeric edits are not accepted targets.
+  Results pins the source workbook so later active-workbook changes cannot redirect
+  these updates. Save failure reports a warning.
+- Targets must be finite; directions supported; requested confidence, if present, must
+  be finite, 0–100 and accompanied by a target. Requested confidence is provenance,
+  not a promise of actual success probability. Saved targets remain fixed on a new run;
+  they are not automatically recomputed from fresh samples.
+- Preserve explicit `object?` boxing of nullable Target/RequestedConfidence at the
+  dynamic COM `Value2` boundary. Passing `Nullable<double>` directly caused a live
+  clear/redefine failure. Empty values must remain null, not placeholder numbers.
+
+## Simulation settings, execution and safety
+
+`SimulationSettings` is a workbook-specific immutable record: TrialCount, SeedMode
+(Automatic/Fixed), FixedSeed. Defaults: **10,000 trials, Automatic**. Presets are
+1,000/5,000/10,000/50,000; custom count is 1–1,000,000. Fixed seeds accept signed 32-bit
+integers. UI and execution share validation. Run Simulation uses saved settings without
+reopening the dialog. Missing settings use defaults; malformed settings block normal
+execution. The older `TryRun(int)` API remains supported with explicit trials/Automatic.
+
+Each execution creates one `Random(actualSeed)` and passes it through all six samplers
+and nested helpers. Automatic seeds are generated once per run. Results retain configured
+settings and actual seed without changing Automatic to Fixed. Same-seed replay is tested;
+volatile Excel formulas, external data and runtime changes are outside this guarantee.
+
+Before mutation, validation checks definitions/parameters, single-cell references,
+duplicate assumption cells, editable inputs outside merged/array/spill ranges, and finite
+numeric input/output values. The adapter identifies actual Excel errors before conversion;
+ordinary numeric 2042 must not become `#N/A`. Every original input value/formula and saved
+application setting is captured first. Formula2 is preferred, with supported fallback
+to Formula. During trials, inputs are sampled, Excel recalculates and forecasts are validated.
+
+`finally` independently restores every input, recalculates, and restores ScreenUpdating,
+EnableEvents and StatusBar, retrying each failed operation once. Persistent restoration
+failures prevent success and identify what needs checking before saving. Excel closing
+or permanently refusing writes cannot be recovered reliably. Errors use structured
+outcomes/user messages and `System.Diagnostics.Trace`; no durable logging store exists.
+The legacy `MC_RUN_PROJECTMODEL` command shares this boundary while retaining fixed PERT
+inputs and output-cell-only recalculation.
+
+Statistics use population SD and linearly interpolated percentiles at `p * (n - 1)`.
+Sensitivity is Spearman rank correlation with average ranks for ties, ordered by absolute
+correlation. Preserve these semantics when changing presentation.
+
+## Assumption Correlations
+
+Model Setup → Correlations opens `AssumptionCorrelationsForm`: add/edit/delete pairs using
+names plus references and a **Correlation** coefficient in [-1,+1]. Self-pairs, reversed
+duplicates, missing assumptions and non-finite/out-of-range coefficients are rejected.
+Zero relationships are omitted on save. Missing references remain visible for correction.
+
+The coefficient means **latent Gaussian dependence**, not the Pearson correlation of final
+transformed samples. There is no calibration to force final Pearson correlation. The editor
+explains that observed correlation depends on the marginal distributions. `GaussianDependence`
+constructs a symmetric unit-diagonal matrix with unspecified pairs zero and performs
+semidefinite Cholesky once per engine run. Valid singular matrices (including ±1) are
+supported; inconsistent combinations are rejected before input writes. Numerical tolerance
+is 1e-12; coefficients are never adjusted to repair an invalid matrix.
+
+`DistributionQuantile` maps correlated Gaussian draws through the configured marginals:
+Normal/Lognormal use the equivalent direct normal transform; Uniform/Triangular use closed
+forms; Beta/PERT use incomplete-beta continued fractions and inverse search. It reuses the
+existing normal CDF and log-gamma helpers. Floating-point endpoint limits apply; numerical
+nonconvergence/range failures stop the run with restoration. All six distributions are tested.
+No-correlation and zero-only models retain the exact independent seeded sequence. Unlinked
+inputs retain their existing samplers; correlated vectors share the run's seeded Random.
+Adding relationships changes random consumption, so replay requires the same full configuration.
+
+`CorrelationPersistence` stores only pairs of tracked assumption IDs and coefficients in
+the independent versioned block. Legacy definitions gain links on correlation save. Normal
+definition saves preserve relationships and remove those whose assumptions were removed;
+Clear Model removes correlations while retaining its existing settings/scenario behavior.
+Missing references produce actionable validation, never silent independent execution.
+Unreadable correlation blocks survive unrelated saves and block execution. Old workbooks
+without the block load normally. Normal Excel Save is required for disk persistence.
+
+Normal and scenario runs pass model-level correlations to `SimulationExecution`. Scenario
+runs retain the same dependence and common draws, applying their existing marginal scaling
+after sampling; zero-scale scenarios remain constants. Sensitivity still uses actual sampled
+inputs and the unchanged Spearman method. With correlated inputs, sensitivity reflects shared
+movement and must not be interpreted as isolated causal contribution. Results UI is unchanged.
+
+Independent sampling retains its fast path. Correlated Beta/PERT inverse transforms are more
+expensive; the optional harness `--correlation-performance` measures sampling without Excel
+recalculation, so its timings are not end-to-end workbook forecasts.
+
+## Results UI and calculation semantics
+
+`ResultsForm` is **1120 × 830**, with exactly three primary tabs: **Forecast** (default),
+**Sensitivity**, **Statistics**. One forecast selector is shared above them; Export Report
+and Close are in a shared footer. The agreed visual-polish pass is complete: preserve this
+structure, size, chart prominence and **34% controls / 66% chart** Forecast workspace
+unless a new request calls for redesign or live testing finds a functional regression.
+
+- Forecast left: dominant actual probability, caption **Probability of achieving target**,
+  target direction/value, Decision Tools, Success when selector and compact
+  **Target → Probability** / **Probability → Target** calculator tabs. Each calculator
+  displays its result directly; P50/P80 are not headline KPI cards.
+- Forecast right: large chart with **Distribution / Cumulative Probability** selector.
+  Chart mode is static session-only state retained across Results windows. Forecast
+  switching refreshes all tabs; chart/calculator tab changes do not simulate.
+- Sensitivity: its own large tornado chart with existing correlation ordering.
+- Statistics: Distribution Statistics (Mean, Std Dev, Minimum, Maximum, P10, P50, P80,
+  P90) and Simulation Run (Trials, Seed Mode, actual Seed).
+- Preserve content-driven row sizing and positive chart plot space under scaling.
+  Do not reintroduce shared AutoSize rows whose scaled supporting controls starve the
+  chart, or percent-height compression of calculator/content rows.
+
+### Targets and calculators
+
+Success direction is explicit and never inferred: AtOrBelow means `X <= target`;
+AtOrAbove means `X >= target`. Probability is matching samples / all samples.
+`P(X >= target)` is **not** `1 - P(X <= target)` because equality mass matters.
+Without direction, lower-tail probability can be calculated but no success claim or
+Success/Miss shading is shown. Missing target clears target-dependent presentation.
+
+When TargetSettings is null, the default target still parses P80 formatted to **two
+decimal places**. It can differ from the exact P80 marker. Saved/manual/reverse-calculated
+accepted targets retain double precision. `SetTargetDisplay` caches the exact value
+separately from formatted text; recalculating unchanged text uses that value. Actual
+user edits clear the cache and accepted display; blank text persists explicit No Target.
+Forecast refresh restores saved target state.
+
+Probability → Target accepts 0–100 and uses the same percentile interpolation as statistics:
+lower-tail `C/100` for AtOrBelow or unspecified direction, `1 - C/100` for AtOrAbove.
+Requested probability can differ from actual empirical success for duplicate/discrete
+values and interpolation. Invalid reverse submissions retain accepted state. Direction
+changes recompute confidence-derived targets using accepted confidence, not pending
+textbox edits; manual targets remain fixed. Failed reverse recalculation restores the
+prior direction. Target → Probability accepts a manual target and clears previous
+requested-confidence provenance.
+
+### Chart behavior
+
+Both GDI+ renderers reuse exact stored P50/P80 and shared coordinate helpers. Percentiles
+are thin/dashed; Target is orange/solid. Labels include formatted values and target
+direction, use separate staggered rows, clamp within chart bounds, and connect vertically
+to the exact marker X coordinate. Labels must not shift actual marker positions. Numeric
+formatting is culture-aware; worksheet currency/date/percentage formats are not imported.
+
+Success/Miss background regions split at the target, not histogram-bin edges. Bars/curve
+remain above shading. Labels sit inside sufficiently wide regions near the baseline;
+there is no separate legend strip. Shaded area is not probability mass.
+
+Distribution uses 15–30 bins. Out-of-range targets retain an annotation without a target
+line or expanded axis; whole-plot shading follows direction. Constant outcomes retain
+the blank histogram while empirical probability remains available.
+
+Cumulative is a cached, right-continuous empirical step CDF (0–100%) built from a sorted
+copy, grouping duplicate outcomes. Non-finite data makes the curve unavailable rather
+than silently removing samples. Constants get a padded range; finite out-of-range targets
+expand the axis. Its orange guide/dot always represents actual `P(X <= target)`, including
+when success means `X >= target`. Interpolated P50/P80 need not intersect the step curve
+at exactly 50%/80%.
+
+`ReportExporter` creates a uniquely named `MonteCarlo_Report_...` sheet in the active
+workbook with run information, assumption definitions, forecast statistics and sensitivity.
+It is a separate report implementation, not a capture of the Results UI.
+
+## Scenario Analysis
+
+Sensitivity answers “What drives the outcome?” Scenario Analysis answers “What happens
+under different assumption scenarios compared with a user-selected baseline?” The baseline
+is the chosen scenario, not the unchanged workbook model.
+
+The separate Scenario Analysis Ribbon command opens `ScenarioAnalysisForm`; normal
+ResultsForm is unchanged. Users create/rename/delete named scenarios, check which to run,
+edit percentage changes for multiple assumptions, or clear an adjustment to No change.
+Names are unique ignoring case/outer whitespace. Empty scenarios are allowed. Users
+explicitly select one user-defined scenario as baseline; its adjustments execute normally.
+There is no synthetic baseline. Selection is stored by ID, survives rename, clears on
+deletion and is always included in the run selection. Missing baseline blocks execution.
+Save definitions writes metadata;
+Run saves definitions before execution. Normal Excel Save is still required for disk storage.
+
+Core owns `ScenarioDefinition`, extensible `ScenarioAdjustmentType`, validation and
+`ScenarioTransformation`. V1 exposes only PercentageChange with business meaning
+`Y = (1 + percentage / 100) X`:
+
+- Normal: scale mean and SD.
+- Uniform: scale bounds; Triangular/PERT: scale min/mode/max, retaining relative shape.
+- Beta: scale bounds, retain alpha/beta.
+- Lognormal: add log(factor) to log mean, retain log SD.
+- Exactly -100%: explicit zero constant. Below -100% is rejected rather than reflecting
+  distributions/signs. Non-finite percentages, invalid source/transformed parameters and
+  representational overflow are rejected; sample-time overflow also stops execution.
+  Core supports constant transformation, but no new constant assumption type/UI was added.
+
+`ScenarioSimulationService` clones input/forecast definitions, validates all selected
+plans before creating a sandbox, and calls the existing `SimulationExecution` for the chosen
+baseline first, then each other selected scenario exactly once. It never assigns global model lists. The engine's optional sample
+transform and cancellation token leave normal callers unchanged. Scenario runs sample
+the original distribution, then scale the sample using Core mathematics; this is equivalent
+to the validated transformed distribution and preserves exact common RNG consumption,
+including PERT/Beta rejection sampling and zero-scale cases. Do not both scale parameters
+and scale samples. One fixed seed is shared across comparisons: the saved fixed seed or
+one newly generated automatic seed. Normal simulation settings are not overwritten.
+
+`ScenarioAnalysisCommand` captures a read-only model snapshot (no highlight restore) and
+restores prior in-memory lists. `ScenarioExcelSandbox.Prepare` uses SaveCopyAs once per
+analysis. A dedicated STA worker opens that file in a private hidden Excel application;
+only the copied workbook receives trial values and recalculation. The complete workbook
+copy preserves formulas, names and sheet references. Iteration settings are copied;
+calculation is explicit/manual between trials. The engine restores inputs/formulas and
+recalculates after every run before the same sandbox is reused. N selected scenarios cost
+N simulations plus one file copy/Excel startup/cleanup; no copy per scenario or extra baseline run.
+
+Owned COM objects are cached and released; cleanup closes without saving, quits the owned
+Excel instance and deletes the unique temporary file/directory. Cleanup also runs after
+setup failure, cancellation and execution failure, and failures are reported rather than
+claimed successful. Cancellation is cooperative between trials; an in-flight COM call or
+unresponsive Excel can delay it. The original Excel instance is never used for trial
+calculation. Source workbook cells, formulas and normal settings remain unchanged; only
+explicit scenario-definition saves and legacy tracking metadata writes affect the source.
+
+V1 requires a self-contained workbook: VBA projects, external links and data connections
+are rejected before copying. Macros are disabled in the private instance. External/add-in
+UDF availability and volatile/iterative models can limit comparability; the private instance
+does not promise the user's loaded add-in environment. No forced process termination is
+used if Excel refuses to quit; cleanup failure must remain visible.
+
+The Analysis Question tab selects one global mode. **Probability → Value** uses a separate
+0–100% probability and direction per forecast, held constant across scenarios. **Value → Probability** uses a target
+and direction per forecast, held constant across scenarios. Both modes retain their own
+direction settings when switching, independently of normal Results targets. Execution
+requires complete settings for every current forecast. Existing ForecastRunResult quantile
+and inclusive probability methods provide the calculations with unchanged semantics.
+Probability → Value asks “At a specified probability, what value does each scenario produce?”
+Value → Probability asks “What probability does each scenario have of meeting a specified target?”
+
+`ScenarioPersistence` stores a chunked JSON **ScenarioDefinitionsV2** envelope containing
+scenarios, baseline ID, mode and per-forecast questions including each probability. The older
+common probability remains a compatibility fallback for questions without their own value;
+the editor saves explicit per-forecast probabilities. This is an additive V2 field. V1 scenario
+lists migrate without an invented baseline or question settings; users must configure
+these before running. Incomplete drafts may be saved. Results are never persisted.
+Adjustments and forecast questions use CellLink identities; legacy coordinate identities
+upgrade on save without changing normal parameters, targets or fills. Definition saves
+and Clear Model preserve the block. Missing definitions remain visible for removal and
+block affected execution; invalid/unknown versions block scenario editing while normal
+simulation remains available.
+
+`ScenarioComparisonForm` has six columns: Scenario, Forecast, Mean, Δ Mean, and either
+Probability Value/Δ Value or Probability/Δ Probability (percentage points).
+Each forecast is compared only with its matching baseline result. Baseline deltas are
+em dashes; a subtle fill and star identify baseline rows. Friendly forecast names include
+cell references. The top identifies baseline, question, trials and common seed; separate
+scrollable forecast context lists each probability/direction or target/direction. Scenario comparison
+has no P50/P80 or generic Success/Target/Direction columns. Normal Results, Statistics
+and Sensitivity retain their existing presentation and calculations.
+
+## Licensing and distribution decisions
+
+Phase 1 intentionally uses offline licensing: a 30-day trial and RSA-signed Professional/
+Enterprise licenses in `MC1.<base64url-payload>.<base64url-signature>` form. `LicenseService`
+coordinates access/storage, `LocalLicenseValidator` verifies signatures, and `TrialService`
+owns trial state. DevelopmentMode is currently **false**; retain this for customer testing/
+distribution. Codes are case-sensitive; activation uses normal casing and trims only outer
+whitespace.
+
+Trial state is DPAPI CurrentUser-protected in a local file and Registry, with start/last-run
+dates, trial ID, rollback checks and conservative reconciliation. Deleting one copy does
+not restart the trial. Deactivation removes the paid license without resetting the original
+trial. Ordinary uninstall/reinstall must retain state. Offline protection is not tamper-proof
+against a determined local user.
+
+Only the public key is embedded in the add-in. The LicenseGenerator, private signing key
+and generated customer licenses are developer-only and must never be distributed or
+committed. `.gitignore` excludes `**/Keys/`, `**/private-key.pem`, `**/Licenses/`. Keep signing
+key backups outside the repository; Excel must never reference the generator/private key.
+
+Installer version is **0.1.0**, publisher Vijay. Inno Setup installs the packed x64 Release
+XLL as `MonteCarloForExcel.xll` under LocalAppData/Programs, without admin rights or a desktop
+shortcut. Preserve its stable AppId across upgrades. Excel registration uses HKCU
+Office/16.0/Excel/Options: reuse our entry or find a free OPEN/OPENn value, never overwrite
+another add-in; uninstall verifies ownership before deletion. Installer paths currently
+assume `C:\montecarlo`.
+
+Distribute the packed Release XLL, not an unpacked XLL alone, symbols, signing assets or
+development files. Customer installation/upgrade/clean-machine validation and code signing
+remain release work; generated x86 packaging does not establish live x86 support.
+
+## Verification and working constraints
+
+Current suite: **504 xUnit cases**,
+zero failures/skips in Debug and Release; full solution builds and x86/x64 packed-XLL
+generation passed in both configurations. Require both configurations for changes to
+execution/persistence. The Windows harness passes six existing Results cases and six
+Scenario editor/comparison cases (both analysis modes) at 100/125/150% geometry scaling.
+Three correlation-editor cases cover add/edit/delete and help/grid/footer bounds at the same scales.
+
+Run from repository root as appropriate to the change:
+
+```powershell
+dotnet test MonteCarlo.Core.Tests --no-restore
+dotnet run --project MonteCarlo.Results.LayoutChecks/MonteCarlo.Results.LayoutChecks.csproj --no-restore
+dotnet build MonteCarlo.Excel/MonteCarlo.Excel.slnx -c Release --no-restore
+git diff --check
 ```
 
-Before every release or significant licensing change, verify in Git
-Changes that no private key or generated customer license is staged.
-
-------------------------------------------------------------------------
-
-## 10. Trial Architecture
-
-The product provides a **30-day trial**.
-
-Trial handling was separated from `LicenseService` into:
-
-`TrialService.cs`
-
-### Trial protection
-
-The trial is not stored only as an obvious plaintext date.
-
-The current implementation uses:
-
--   Windows DPAPI (`ProtectedData`)
--   Current-user protection
--   Encrypted trial state
--   Local file copy
--   Windows Registry copy
--   Start date
--   Last-run date
--   Trial ID
--   Basic clock rollback detection
--   Conservative reconciliation of duplicate trial state
-
-The local trial state is designed so deleting only the local `trial.dat`
-file does not simply restart the trial; the second state copy can
-restore it.
-
-### Important limitation
-
-Pure offline trial protection cannot be made impossible to bypass by a
-determined user with sufficient access to the machine. The objective is
-reasonable commercial protection, not DRM-level security.
-
-### Deactivation behavior
-
-Deactivating a Professional/Enterprise license removes the locally
-stored paid license.
-
-It does **not** create a new 30-day trial.
-
-The user falls back to the state of the original trial. If that trial
-has already expired, it remains expired.
-
-------------------------------------------------------------------------
-
-## 11. License UI
-
-Two main Windows Forms are used:
-
-### `LicenseForm`
-
-Displays:
-
--   License type
--   Status
--   Licensed To
--   Expiry
--   Trial days remaining where applicable
--   Activate License button
--   Deactivate button
--   Close button
-
-The UI was adjusted so **Activate License** remains on one line and the
-bottom controls are properly spaced.
-
-### `ActivationForm`
-
-Allows the customer to paste the full signed license code.
-
-The textbox was enlarged because RSA-signed licenses are long.
-
-Critical setting:
-
-`CharacterCasing = CharacterCasing.Normal`
-
-Do not change it back to uppercase.
-
-------------------------------------------------------------------------
-
-## 12. LicenseService Responsibilities
-
-`LicenseService` is the high-level licensing coordinator.
-
-Current intended responsibilities:
-
-1.  Development override when explicitly enabled.
-2.  Check locally saved signed customer license.
-3.  Validate it through `LocalLicenseValidator`.
-4.  Return Professional/Enterprise license, including expired state.
-5.  If no customer license exists, delegate to `TrialService`.
-6.  Activate and persist valid signed licenses.
-7.  Expose access checks.
-8.  Deactivate locally stored paid licenses.
-
-Trial persistence implementation itself should remain in `TrialService`,
-not duplicated inside `LicenseService`.
-
-------------------------------------------------------------------------
-
-## 13. Release Build
-
-Commercial/test packaging should use a **Release** build rather than
-Debug.
-
-Current release/publish path:
-
-`C:\montecarlo\MonteCarlo.Excel\MonteCarlo.Excel\bin\Release\net10.0-windows\publish\`
-
-The important Excel-DNA artifact is:
-
-`MonteCarlo.Excel-AddIn64-packed.xll`
-
-The unpacked XLL was tested and failed when moved by itself because it
-required the companion `.dna` file. The **packed XLL was then tested and
-worked standalone**.
-
-Therefore the packed XLL is the current customer distribution artifact.
-
-------------------------------------------------------------------------
-
-## 14. Excel-DNA Distribution
-
-Current target is primarily **64-bit Excel**.
-
-The packed XLL contains the required Excel-DNA/add-in content and is
-intended to avoid distributing a loose collection of DLLs and `.dna`
-files.
-
-The installer renames the distributed artifact to a cleaner
-customer-facing name:
-
-`MonteCarloForExcel.xll`
-
-Do not distribute:
-
--   `.pdb` debugging symbols
--   LicenseGenerator
--   private signing keys
--   generated customer licenses
--   unnecessary source/build files
-
-------------------------------------------------------------------------
-
-## 15. Installer
-
-Installer technology:
-
-**Inno Setup 7, 64-bit edition**
-
-Installer source location:
-
-`C:\montecarlo\Installer\MonteCarloForExcel.iss`
-
-Installer output location:
-
-`C:\montecarlo\Installer\Output\`
-
-Current installer version:
-
-`0.1.0`
-
-Expected installer filename:
-
-`MonteCarloForExcel-Setup-0.1.0.exe`
-
-### Current source XLL
-
-The installer currently points to:
-
-`C:\montecarlo\MonteCarlo.Excel\MonteCarlo.Excel\bin\Release\net10.0-windows\publish\MonteCarlo.Excel-AddIn64-packed.xll`
-
-### Installation strategy
-
-Current installer is designed as a per-user installation under Local
-AppData rather than requiring Program Files/admin installation.
-
-Conceptually:
-
-`Setup.exe → install packed XLL → register with Excel → user opens Excel → Monte Carlo Ribbon loads`
-
-------------------------------------------------------------------------
-
-## 16. Excel Registration
-
-The installer registers the XLL through Excel's user Options registry
-area.
-
-The important registry area currently used is:
-
-`HKCU\Software\Microsoft\Office\16.0\Excel\Options`
-
-Excel may already contain add-in startup values named:
-
--   `OPEN`
--   `OPEN1`
--   `OPEN2`
--   `OPEN3`
--   etc.
-
-The installer must **not overwrite another add-in's OPEN entry**.
-
-Current installer logic:
-
-1.  Look for an existing registration pointing to our XLL.
-2.  If not present, find the first unused `OPEN`, `OPEN1`, `OPEN2`, etc.
-3.  Register Monte Carlo there.
-4.  Record which OPEN value was used.
-5.  During uninstall, verify that the value still points to our XLL
-    before deleting it.
-
-This safety behavior should be preserved in future installer revisions.
-
-------------------------------------------------------------------------
-
-## 17. Installer Decisions
-
-The installer currently:
-
--   Uses a stable `AppId` that should remain unchanged across upgrades
-    of the same product.
--   Uses per-user installation.
--   Installs the 64-bit packed XLL.
--   Registers the XLL for Excel startup.
--   Supports uninstall.
--   Does not create a desktop shortcut for the XLL.
--   Should not delete trial/licensing state merely because the
-    application is uninstalled.
-
-The customer should interact with the product through Excel, not by
-double-clicking a desktop shortcut to an `.xll`.
-
-------------------------------------------------------------------------
-
-## 18. Versioning
-
-Current development installer version:
-
-`0.1.0`
-
-Future releases should increment versions deliberately, for example:
-
--   0.1.0 --- first installer/testing build
--   0.2.0 --- meaningful feature addition
--   0.2.1 --- bug fix
--   1.0.0 --- first production commercial release
-
-Keep the Inno Setup `AppId` stable across upgrades.
-
-------------------------------------------------------------------------
-
-## 19. Git Workflow
-
-Development is maintained in Git.
-
-Useful milestone commit messages already used/recommended during
-development include concepts such as:
-
--   Add licensing framework, trial mode and activation UI
--   Implement signed offline licensing and customer activation
--   Refactor licensing with signed licenses and protected trial service
--   Complete offline licensing, protected trial and license UI
--   Prepare packed Excel-DNA release build
-
-Continue committing at logical milestones rather than waiting until many
-unrelated changes accumulate.
-
-------------------------------------------------------------------------
-
-## 20. Current Development Status
-
-Major completed milestones:
-
--   [x] Core Monte Carlo Excel add-in
--   [x] Ribbon UI
--   [x] Ribbon icons
--   [x] Assumption definition
--   [x] Forecast definition
--   [x] Simulation execution
--   [x] Results/dashboard
--   [x] Forecast Target Marker (see section 26)
--   [x] P50/P80 marker-label UX enhancement (see section 26)
--   [x] Target Success / Failure Regions (see section 26)
--   [x] Report exporter
--   [x] Licensing framework
--   [x] 30-day trial
--   [x] RSA key pair generation
--   [x] Customer license generator
--   [x] Signed offline license validation
--   [x] Professional/Enterprise activation
--   [x] License UI
--   [x] Protected local trial
--   [x] Release build
--   [x] Packed 64-bit XLL
--   [x] Initial Inno Setup installer compilation
-
-------------------------------------------------------------------------
-
-## 21. Immediate Next Steps
-
-Recommended sequence from the current point:
-
-1.  Test the generated installer end-to-end.
-2.  Close Excel before installation.
-3.  Install `MonteCarloForExcel-Setup-0.1.0.exe`.
-4.  Open Excel normally.
-5.  Confirm the Monte Carlo Ribbon loads automatically.
-6.  Test Define Assumption.
-7.  Test Define Forecast.
-8.  Run a simulation.
-9.  Test results/report export.
-10. Verify trial/license screen.
-11. Test signed Professional activation.
-12. Close/reopen Excel and verify license persistence.
-13. Uninstall from Windows Installed Apps.
-14. Reopen Excel and verify the Ribbon is gone.
-15. Verify uninstall/reinstall does not reset the original trial.
-16. Test upgrade/version handling.
-17. Test on a clean Windows machine/VM without Visual Studio.
-18. Prepare code signing for commercial distribution.
-
-------------------------------------------------------------------------
-
-## 22. Future Product Roadmap
-
-Potential future work includes:
-
--   Correlation between assumptions.
--   Additional probability distributions.
--   Improved distribution-selection UX.
--   More simulation diagnostics.
--   Enhanced charts/results.
--   More reporting/export options.
--   Model validation.
--   Sensitivity analysis enhancements.
--   Better error handling and user guidance.
--   Product documentation/help.
--   Expanded automated regression coverage.
--   Installer upgrade handling.
--   32-bit Excel support if commercially required.
--   Code signing.
--   Commercial publisher identity.
--   Optional future online licensing/device activation.
--   License revocation/renewal infrastructure if online licensing is
-    later introduced.
-
-Do not implement online licensing merely because it is possible. The
-current Phase-1 product intentionally uses offline signed licenses.
-
-------------------------------------------------------------------------
-
-## 23. Rules for Future Coding Sessions
-
-When continuing this project with ChatGPT or another developer:
-
-1.  Read this file first.
-2.  Use the **current source files** as the source of truth for
-    implementation details.
-3.  Do not recreate licensing architecture from scratch.
-4.  Never expose or commit the private RSA key.
-5.  Preserve signed-license case sensitivity.
-6.  Preserve trial state across ordinary uninstall/reinstall.
-7.  Use the packed Release XLL for distribution.
-8.  Do not overwrite another Excel add-in's `OPEN` registry entry.
-9.  Keep `LicenseService`, `LocalLicenseValidator`, and `TrialService`
-    responsibilities separated.
-10. Update this document whenever an architectural decision materially
-    changes.
-
-When asking ChatGPT to add a feature, provide this file plus the
-relevant current `.cs` files.
-
-Example request:
-
-> Continue my Monte Carlo for Excel project using PROJECT_CONTEXT.md as
-> the project context. I now want to add correlation between
-> assumptions. Here are the current simulation and assumption files.
-> Preserve existing licensing and installer behavior.
-
-------------------------------------------------------------------------
-
-## 24. Source of Truth
-
-This document is a **context/handover document**, not a substitute for
-source control.
-
-Priority when resolving discrepancies:
-
-1.  Current working source code.
-2.  Git history.
-3.  This `PROJECT_CONTEXT.md`.
-4.  Previous chat history.
-
-Update this file after significant architectural changes so it remains
-useful as a future handover document.
-
-------------------------------------------------------------------------
-
-## 25. Distribution Preview
-
-The Define/Edit Assumption form previews all six supported assumption
-distributions from the unsaved values in its controls. The deterministic
-analytical density and parameter validation are implemented in
-`MonteCarlo.Core/DistributionPreview.cs`. The form only reads its controls,
-displays inline validation, and renders the returned points. Previewing
-does not sample, modify Excel cells, or save the simulation model.
-
-Normal and Lognormal previews cover four standard deviations on either
-side of the mean in their respective spaces. Bounded distributions use
-their support. Beta densities with singular endpoints are evaluated just
-inside the support; visual peak clipping is confined to the form renderer.
-
-------------------------------------------------------------------------
-
-## 26. Forecast Target and Success / Failure Regions
-
-### Architecture and relevant files
-
-`ResultsForm` renders the histogram with custom WinForms/GDI+. Core's
-`ChartValuePosition` supplies shared range classification/normalization;
-`TargetDirection` defines success direction; `EmpiricalProbability` counts
-sample comparisons. `ForecastRunResult` delegates probability calculations
-to that helper. Simulation generation, statistics, and percentiles are unchanged.
-
-- `MonteCarlo.Excel/MonteCarlo.Excel/`: `ResultsForm.cs`, `SimulationRunResult.cs`.
-- `MonteCarlo.Core/`: `ChartValuePosition.cs`, `TargetDirection.cs`, `EmpiricalProbability.cs`.
-- `MonteCarlo.Core.Tests/`: `ChartValuePositionTests.cs`, `EmpiricalProbabilityTests.cs`.
-
-### Session state and probability semantics
-
-Target and direction are ResultsForm session state, not persisted in
-`ForecastDefinition` or workbook storage. Rendering uses the accepted,
-calculated target. Pending edits or missing/invalid/non-finite targets clear
-the marker, regions, success percentage, and legend. Forecast refresh resets
-the target to P80 rounded to two decimals; this can differ from exact P80.
-
-Direction is explicit, initially unspecified in each new results window,
-and retained independently per forecast within that window. Never infer it
-from forecast name, worksheet, distribution, target value, or formatting.
-Switching forecasts restores direction but retains the target reset above.
-Without direction, the marker and existing probabilities still work;
-no success claim or shading is shown.
-
-- `AtOrBelow`: success is outcome `<= target`; Miss is `> target`.
-- `AtOrAbove`: success is outcome `>= target`; Miss is `< target`.
-- `P(<= target)` is inclusive lower-side probability; existing `P(> target)`
-  remains strict upper-side probability; `P(>= target)` is inclusive upper-side.
-- Never implement `P(>= target)` as `1 - P(<= target)`: that gives `P(> target)`
-  and loses equality mass. Probabilities use matching samples / total samples.
-
-### Rendering, edge cases, and limits
-
-The in-range target and percentile markers share the same X-axis transformation.
-P50/P80 labels include full culture-aware numeric values. P50, P80, and Target
-use separate compact header rows with measured labels constrained to chart bounds.
-Ticks associate in-range labels with exact X coordinates; rows/ticks resolve
-presentation overlap without shifting coincident or nearby marker positions.
-Percentiles remain thin/dashed; Target remains orange/solid. Redundant percentile
-X-axis values are omitted; minimum/maximum labels remain.
-
-Subtle plot-background Success/Miss regions split at the exact target coordinate,
-including inside a bin. Bins are not recolored; bars, P50/P80, target marker,
-and labels render above shading. A text legend identifies both sides.
-Shading represents value regions, not probability mass; numerical success
-probability comes from simulation samples, never histogram geometry.
-
-- Out-of-range targets retain an annotation, with no target line, clamping,
-  or axis expansion. The whole plot represents Success/Miss according to
-  direction (0%/100% for finite samples).
-- Endpoint equality follows inclusive comparisons even when its visual region
-  has zero width.
-- Constant outcomes retain the blank histogram; empirical success can still display.
-- Future persistence requires an explicit backward-compatible model/workbook change.
-- Worksheet currency/date/percentage formatting is not implemented; values use
-  the existing culture-aware numeric formatting.
-- UI state/layout integration is primarily manually verified, not automated UI-tested.
-
-### Validation baseline
-
-As of September 2026: **88 automated tests passing**, complete solution build successful,
-and manual Excel verification completed for percentile/target markers and both success directions.
-
-## 27. Cumulative Probability (S-Curve)
-
-The forecast results chart has a Distribution/Cumulative selector. Distribution
-is the initial default and its existing renderer is unchanged. ResultsForm stores
-the last selected mode in a static, session-only field, so subsequent results
-dialogs retain the selection. Each successful simulation still opens a new modal
-dialog with a new SimulationRunResult; there is no in-place rerun workflow.
-Switching views only invalidates the chart and never calls the simulation engine.
-
-Core's CumulativeProbability.Build sorts a copy of the supplied outcomes and
-groups duplicates into one jump per distinct value. Each point includes the
-probability immediately before the jump and the inclusive probability at that
-value. ResultsForm draws a right-continuous empirical step curve with a 0–100%
-Y-axis, caching the data per ForecastRunResult within the dialog. Empty results
-have no curve; any non-finite sample makes the whole curve unavailable with an
-inline explanation. Samples are never silently removed from the denominator.
-
-The cumulative chart reuses ForecastRunResult.P50/P80 exactly and shares the
-existing marker renderer. It does not calculate percentiles. Interpolated
-percentile values may not intersect an empirical step at exactly 50%/80%.
-Constant/single outcomes get a padded range. Cumulative plotting includes finite
-out-of-range targets in its axis range; Distribution retains its original
-out-of-range annotation behavior. Numeric formatting remains unchanged (no new
-Excel date/currency-format support).
-
-Target confidence reuses ProbabilityLessThanOrEqual for AtOrBelow and
-ProbabilityGreaterThanOrEqual for AtOrAbove. With unspecified direction, the
-chart explicitly labels P(X <= target) as cumulative probability, not success
-confidence. Existing success/miss regions are reused. When currentTarget is
-absent, the cumulative chart shows its curve and percentile markers without a
-target line or chart probability label. The existing P80 default-target and
-Calculate workflows remain unchanged.
-
-Validation: complete suite passed before edits (88 tests), after the Core stage
-(102 tests), and after integration (107 tests; 19 new cases, no failures/skips).
-The complete solution build succeeded with three warnings in unchanged files
-(LicenseService, AssumptionForm, WorkbookPersistence). Tests link the non-UI
-forecast result/model source files to exercise actual percentile/probability
-behavior without requiring Excel. Manual Excel UI verification is still required:
-switching without a simulation, target/no-target states, both directions,
-coincident markers, constant outcomes, out-of-range targets, display scaling,
-and a new run reopening in the selected mode with fresh results.
-
-## 28. Confidence to Target
-
-Probability Analysis now contains compact Target → Confidence and Confidence →
-Target tabs within its existing footprint. The existing percentile panel and
-P50/P80 chart benchmarks remain unchanged. Neither calculation-tab changes nor
-chart-view changes invoke a simulation.
-
-ForecastRunResult.GetTargetForConfidence accepts a percentage from 0 through 100
-and an optional TargetDirection. It sorts a copy and calls the same private
-Percentile method used for P10/P50/P80/P90. AtOrBelow uses C/100; AtOrAbove uses
-1 - C/100; unspecified direction uses the lower-tail percentile C/100 without
-claiming success confidence. Invalid confidence, non-finite samples, and
-unrepresentable interpolation results are rejected; no samples are filtered.
-The percentile algorithm and EmpiricalProbability remain unchanged.
-
-ResultsForm tracks manual versus confidence-derived target origin and accepted
-requested confidence. A successful reverse calculation updates the shared target,
-both probability displays, success regions, and chart. The full target is retained
-internally; the editable target textbox uses round-trip numeric formatting, while
-result labels use the existing display formatting. Invalid confidence submissions
-leave the accepted calculation intact. Tab changes retain accepted state. Direction
-changes recompute a confidence-derived target from accepted confidence (not pending
-textbox edits), but retain a manually entered target. Failed reverse recalculation
-restores the prior direction. Forecast changes clear reverse state and retain the
-existing rounded-P80 default-target workflow.
-
-The reverse result distinguishes requested confidence, required target, and actual
-sample probability. These may differ for interpolated quantiles, discrete samples,
-and duplicates. The S-Curve remains an increasing lower-tail CDF. Its dashed orange
-horizontal guide, intersection dot, and percentage label always represent actual
-P(X <= target), even when success means X >= target. Inclusive upper-tail success
-continues to use ProbabilityGreaterThanOrEqual. No requested-probability guide is
-drawn at a misleading curve intersection.
-
-Validation for this enhancement: baseline 107 tests; calculation stage 130 tests;
-final suite 139 tests (32 new cases), all passing with no failures/skips. Complete
-solution build succeeds with the same three warnings in unchanged files noted
-above. Manual Excel verification remains required for both calculation modes,
-73%/87.5%, both directions and switching, 0%/100%, invalid input preserving accepted
-confidence, guide/marker overlaps, constants, out-of-range targets, forecast changes,
-fresh simulations, chart-view session persistence, and Windows display scaling.
-
-## 29. Decision-Focused Results Layout
-
-ResultsForm retains its 1120 x 830 window and existing controls/handlers, arranged
-with nested WinForms TableLayoutPanels. The top contains the forecast selector
-and decision summary: dominant actual success probability, accepted target, P50,
-and P80. The main chart is on the left and Decision tools on the right. Sensitivity
-and permanently visible, borderless Details occupy the supporting lower row.
-Details contains Trials, Mean, Std Dev, Minimum, Maximum, P10, and P90. The separate
-statistics/percentiles presentation is removed; all model calculations remain.
-
-RefreshSuccessDisplay is the shared target-dependent presentation path. It clears
-all contextual labels before rebuilding the summary, requested confidence, and
-legends from accepted state. Missing target displays 'No target defined' and an
-em dash instead of a percentage. An accepted target without direction displays
-'Select success direction', with no claim of success. Forecast changes retain
-the rounded-P80 workflow, reset reverse-calculation state, and refresh landmarks,
-Details, and forecast tooltips. Full target precision and direction-change behavior
-are unchanged.
-
-Actual success probability has one dominant summary presentation. The calculation
-tabs no longer repeat that result; the reverse tab shows requested confidence and
-'Target at ... confidence'. Unspecified direction uses 'cumulative probability'.
-The redundant cumulative-chart footer is removed; the actual probability guide
-remains labelled '≤ target', including for AtOrAbove success. Existing inclusive
-and strict comparison values remain as subdued context below Decision tools.
-Tooltips expose long forecast names and summary/detail values when clipped.
-
-Validation: complete baseline and final suites each pass 139 tests, with zero
-failures/skips. No new calculation or pixel-coordinate tests were needed. Full
-solution build succeeds with the three existing warnings noted above. Runtime
-presentation smoke checks cover unspecified direction, target clearing without
-stale comparison labels, confidence-created targets, and direction recalculation.
-Offscreen rendering did not provide a usable preview; manual Excel visual checks
-remain required for hierarchy, both chart/calculation modes, both directions,
-missing target, forecast switching, long names/large values, marker overlap,
-Details, Sensitivity, Export Report, and Windows 100%/125%/150% scaling.
-
-## 30. Simulation Validation and User-Friendly Errors
-
-The Ribbon entry remains OnRunSimulation. After licensing and the settings dialog,
-it calls SimulationService.TryRun. This loads the saved configuration with
-WorkbookPersistence.LoadModelForSimulation and invokes SimulationExecution only
-after validating it. The existing SimulationService.Run signature remains available
-as an exception-based compatibility wrapper. ResultsForm, distributions, percentiles,
-target semantics, sensitivity calculations, and result persistence are unchanged.
-At this stage targets remained ResultsForm session state. Section 31 records the
-subsequent addition of optional workbook target settings and their validation.
-
-ValidationResult holds ValidationError records with location, user message,
-suggested correction, and severity. Critical errors block execution before any
-sample writes or Excel setting changes. The rules include:
-
-- A positive trial count, at least one assumption, and at least one forecast.
-- Required finite numeric distribution parameters; zero remains a valid mean or
-  bound and is never used as a substitute for missing required saved parameters.
-- Existing DistributionPreview.Validate rules: positive Normal/Lognormal standard
-  deviation; ordered Uniform/Beta bounds; ordered Triangular/PERT bounds with mode
-  inside them; positive Beta shape parameters; supported distributions only.
-- Existing worksheets and single-cell references in the configured workbook/sheet,
-  finite numeric cell values, and no Excel error values. Excel's IsError is checked
-  on the Range before converting Value2, avoiding confusion between error codes and
-  ordinary numeric values. Runtime forecast checks include cell and trial context.
-- No duplicate physical assumption cells, protected locked inputs, merged inputs,
-  array-formula inputs, or spilled-formula inputs.
-- Invalid/unknown saved item types, missing references, and malformed parameters
-  are reported rather than silently skipped for simulation. Blank rows do not
-  truncate simulation validation. Both existing saved layouts remain readable;
-  the older layout's absent Parameter4 remains valid for non-Beta distributions.
-  The normal LoadModel and SaveModel schema are retained.
-
-SimulationExecution contains the existing sampling loop behind small
-ISimulationWorkbook/ISimulationCell interfaces. ExcelSimulationWorkbook pins the
-workbook and resolved cell objects for the run. All originals and settings are
-captured before mutation. Ordinary formulas are captured/restored as Formula2
-(Formula on older Excel without that property); plain values use Value2. Array
-and spill inputs are rejected because changing their single-cell representation
-cannot safely preserve the entire range.
-
-ScreenUpdating, EnableEvents, sample writes, calculations, and progress updates
-are inside a try/finally cleanup boundary. Cleanup attempts every original cell,
-recalculation, and every saved application setting independently, retrying a failed
-operation once. A persistent restoration failure prevents success and identifies
-the affected cells/settings with instructions to check before saving. No code can
-guarantee restoration if Excel closes or permanently refuses writes; such a failure
-is explicitly reported rather than hidden. Original exceptions and cleanup errors
-are retained on the structured outcome.
-
-The older MC_RUN_PROJECTMODEL command also uses this execution boundary with its
-same fixed PERT inputs, output-cell-only recalculation, and existing report/percentile
-calculations. Both simulation entry points show safe user messages and send technical
-exceptions to System.Diagnostics.Trace. There was no durable logging subsystem;
-Trace output requires an attached/configured listener and no new log store is added.
-
-Tests link the non-COM validation/execution files into the existing test project and
-use fake workbook/cell adapters to exercise validation gates, formula/value capture,
-partial writes, runtime formula errors, setup failures, restoration retries, failed
-cell/settings cleanup, and preservation of original settings. Baseline: 139 passing
-tests. Final: 200 passing tests, 0 failures/skips (61 new cases).
-
-The full solution and both packed XLLs build in artifacts/validation-build because
-Excel has the normal Debug packed XLL locked. Three existing warnings remain in
-LicenseService, AssumptionForm, and WorkbookPersistence. Manual Excel verification
-is still required for actual COM error marshaling, valid old/new workbooks, missing
-worksheets/ranges, protected/merged/array/spill inputs, formula restoration after a
-runtime failure, and both simulation entry points. No live workbook was modified
-as part of automated validation.
-
-
-## 31. Workbook Model Persistence Review and Confirmed Gaps
-
-The existing `__MonteCarloConfig` Very Hidden worksheet remains the persistence
-store. No replacement serialization format or speculative feature structures were
-introduced. Assumptions, forecasts, friendly names, all six distribution types,
-and all four distribution parameters were already persisted. Both the legacy
-three-parameter/name-in-column-8 layout and the four-parameter/name-in-column-9
-layout remain readable. Classifications, user-configured correlations, scenarios,
-and decision variables are not current product features; their persistence is
-Not Applicable / Future. Sensitivity correlations are calculated results, not
-saved correlation settings.
-
-The lifecycle is: Define/Edit commands update the model and call SaveModel;
-normal Excel Save writes metadata with the workbook; workbook open/activation
-reloads it; SimulationService.TryRun reloads and validates again before simulation.
-The add-in now uses the Excel interop event delegate types, logs registration
-failures through Trace, and attempts the initial load independently of registration.
-Normal restore uses the existing structured validation path and surfaces affected
-saved rows with correction guidance instead of silently skipping damaged entries.
-Unexpected restoration failures produce a safe message and Trace diagnostics.
-
-Confirmed gaps addressed:
-
-- Optional column 10 (`CellLink`) stores a hidden workbook-scoped name per input or
-  output (`_MC_Cell_` plus a GUID). Excel maintains these direct single-cell
-  references across worksheet renames and structural moves. Restore resolves the
-  tracked cell and refreshes the sheet/address used by simulation. Broken names,
-  deleted cells/sheets, invalid ranges, or references to another workbook produce
-  validation errors; broken tracked links never fall back to stale coordinates.
-  Existing legacy sheet/address references still load. Tracking starts when those
-  definitions are next saved; an earlier rename cannot safely be inferred.
-- Optional columns 11–14 store TargetConfigured, Target, TargetDirection and
-  RequestedConfidence. Null settings retain the existing P80 default; explicit
-  empty target settings preserve the no-target state. Accepted manual targets,
-  inclusive direction, and requested confidence restore without rounding or
-  changing percentile/probability calculations. Requested confidence remains
-  separate from actual success probability on a subsequent run. Restored targets
-  are fixed saved values; they are not recomputed from a new sample automatically.
-- With explicit user approval, Results restores and saves these settings when
-  accepted targets/directions change or the target is cleared. Draft numeric text
-  is not an accepted target. Updates touch only the matching forecast row and pin
-  the source workbook, including after Export Report activates another workbook.
-  Forecast rename/redefinition preserves valid target settings and tracked links.
-- Saved targets must be finite; direction must be supported; optional requested
-  confidence must be finite, 0–100, and accompanied by a target. Malformed saved
-  settings are reported and block simulation via the existing validation gate.
-- Text metadata columns use text formatting so names cannot become formulas.
-  Model metadata remains in the Very Hidden sheet and hidden direct cell names;
-  no user calculation cells are changed by saving/restoring the configuration.
-
-The user still needs to save the workbook normally to retain edits on disk.
-Charts, percentiles, probability/target algorithms, sensitivity, reports and the
-simulation mutation/restoration boundary are unchanged. Old add-in versions can
-read the original columns but may discard new optional fields when they save.
-
-Automated coverage links the actual WorkbookPersistence, ExcelSimulationWorkbook
-and SimulationService into Core.Tests behind a test-only Excel-DNA application
-boundary and in-memory workbook objects. Tests exercise every distribution and
-parameter, old layouts and upgrades, target/clear/direction/requested-confidence
-round trips, multiple forecasts, renamed/moved/broken/deleted links, corrupted
-metadata, workbook isolation, and source-workbook updates after report activation.
-A save/reopen/simulate test recreates workbook objects, clears/poisons in-memory
-model state, calls the production simulation entry point, verifies samples use
-restored parameters and verifies input restoration. These are adapter/lifecycle
-unit tests, not a real Excel file/COM save-close-reopen test.
-
-Validation: baseline 200 passed; final 238 passed, 0 failed/skipped (38 new cases).
-Complete Release solution build and Excel-DNA packaging succeeded in
-`artifacts/persistence-release`; both 32-bit and 64-bit packed XLLs were generated.
-Whitespace checks passed. Existing warnings remain in LicenseService (CS0162),
-AssumptionForm (CS8600), and WorkbookPersistence (CS8603); the latter is also emitted
-when its source is compiled into the test project.
-
-Still requires real Excel verification: save/close/reopen with old and new workbooks,
-workbook event subscriptions and switching, persisted target/cleared-target and
-confidence displays, sheet rename/move/delete and cell insertion/deletion handling,
-normal numeric 2042 versus actual Excel errors, hidden name/text-metadata behavior,
-protected/read-only save failures, and Export Report followed by a target update.
-No live workbook was modified for these automated tests. The generated packed XLLs
-were built and inspected, not loaded into Excel during this review.
+Restore dependencies first on a fresh checkout. Tests cover sampling/fitting/preview,
+probability/CDF/quantiles, validation/restoration failures, old/new persistence layouts,
+tracked references, highlighting/original fills, edit/delete/recreation, nullable COM
+call-site serialization, settings, seeded replay, scenario transformations/comparisons,
+explicit adjusted baselines, both decision modes/deltas, V1 migration/V2 question round trips,
+correlation validation/PSD matrices, latent dependence and all marginal distributions,
+seeded correlated runs, correlation persistence/deletion/reference tracking,
+missing references, source isolation, cancellation and owned
+resource cleanup. Save/reopen unit tests use in-memory
+adapters, not real Excel files or COM.
+
+The separate layout harness compiles production ResultsForm with a workbook double,
+creates hidden native handles and stubs Export. Automatic/Fixed cases use 100/125/150%
+geometry scaling and matching bitmap DPI. Assertions cover tabs, shared selector/footer,
+statistics/calculator bounds, forecast/direction changes, exact target retention, positive
+plot/bar geometry, both paint paths and marker placement/labels. These are presence/geometry
+checks, not pixel-perfect or per-monitor DPI tests. `RESULTS_LAYOUT_PREVIEW=1` optionally
+produces local previews; hidden native input text may not paint there. See its README.
+
+Opt-in real Excel integration check (Windows/Excel required): append `-- --live-scenarios`
+to the harness command. It creates only private Excel instances and a synthetic workbook,
+verifying correlated inputs, named/cross-sheet formulas, source values/formulas/format/Saved state, one copy
+per comparison, success/cancellation/failure cleanup, file deletion and owned process exit.
+It passed locally; Excel startup/shutdown latency can vary substantially and the bounded
+process-exit assertion can time out before eventual exit. This does not certify arbitrary
+customer workbooks or real-monitor DPI.
+
+Release publish directory:
+`MonteCarlo.Excel/MonteCarlo.Excel/bin/Release/net10.0-windows/publish/`.
+Packed outputs: `MonteCarlo.Excel-AddIn-packed.xll` (x86) and
+`MonteCarlo.Excel-AddIn64-packed.xll` (x64). When Excel locks the normal XLL, use an isolated
+output, e.g. `-p:ExcelDnaPublishPath=C:\montecarlo\artifacts\validation-build`. Do not delete/
+replace a loaded XLL or close Excel merely for validation. Existing warnings: LicenseService
+CS0162, AssumptionForm CS8600 and WorkbookPersistence CS8603 (also linked into tests).
+
+Live Excel checks remain necessary for COM errors, protected/read-only failures, formula
+restoration, workbook events/switching, save/close/reopen, original-fill restoration,
+reference moves/deletions, clear/redefine, seeded replay and Export followed by target
+updates. UI verification must include actual display scaling, both charts, close/edge
+markers, constant/out-of-range cases, both calculators/directions and native control text.
+Automated checks do not establish completion of these live checks.

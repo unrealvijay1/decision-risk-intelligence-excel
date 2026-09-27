@@ -154,7 +154,7 @@ public static class DistributionPreview
         return Math.Exp(logDensity);
     }
 
-    private static double LogGamma(double value)
+    internal static double LogGamma(double value)
     {
         if (value < 0.5)
             return Math.Log(Math.PI) - Math.Log(Math.Sin(Math.PI * value)) -

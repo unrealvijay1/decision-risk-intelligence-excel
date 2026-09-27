@@ -22,3 +22,24 @@ These checks do not replace live Excel verification or actual per-monitor DPI te
 Forecast refinement checks also verify the 34/66 two-column workspace, calculator terminology and result bounds, and exact target retention when formatted text is recalculated. Success/Miss labels are integrated into chart regions; disconnected marker leader ticks are removed.
 
 Visual-polish assertions verify the nonduplicated probability caption and production marker-label bounds at left, middle, and right anchors, including coincident markers in separate rows. Chart dimensions remain unchanged.
+
+Scenario Analysis adds six cases (both analysis modes) at 100%, 125%, and 150% scaling,
+exercising explicit baseline selection, independent forecast probabilities and mode switching with retained questions, adjustment
+save/remove handlers, six decision columns, neutral baseline deltas, forecast context,
+and grid/footer bounds. The comparison supports horizontal scrolling.
+
+Assumption Correlations adds three cases at the same scales, checking add/edit/delete,
+the three-column configuration grid, explanatory help and footer bounds.
+Append `-- --correlation-performance` for a sampling-only timing comparison of independent
+and correlated Normal/PERT/Beta pairs (50,000 trials, no Excel recalculation).
+
+Optional real Excel scenario integration checks (separate from the default layout run):
+
+    dotnet run --project MonteCarlo.Results.LayoutChecks/MonteCarlo.Results.LayoutChecks.csproj --no-restore -- --live-scenarios
+
+This opt-in path creates private hidden Excel instances and a synthetic workbook. It
+does not attach to existing Excel processes. It exercises the production copy/sandbox
+and engine paths, correlated assumptions, an adjusted user-selected baseline, named ranges, cross-sheet formulas, source values/formulas/format/Saved
+state, one copy per comparison, completion/cancellation/failure, temporary-file deletion
+and owned process exit. It requires Windows and an installed Excel; it is not part of
+the platform-independent xUnit count or a substitute for customer-workbook testing.

@@ -24,6 +24,11 @@
 
   <ItemGroup>
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationSettings.cs" Link="Simulation/SimulationSettings.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/CorrelationPersistence.cs" Link="Correlations/CorrelationPersistence.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ScenarioPersistence.cs" Link="Scenarios/ScenarioPersistence.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ScenarioSimulationService.cs" Link="Scenarios/ScenarioSimulationService.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ScenarioTemporaryFile.cs" Link="Scenarios/ScenarioTemporaryFile.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ScenarioExcelSandbox.cs" Link="Scenarios/ScenarioExcelSandbox.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ModelDefinitionDeletion.cs" Link="Persistence/ModelDefinitionDeletion.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ForecastEditDraft.cs" Link="Persistence/ForecastEditDraft.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ModelCellHighlight.cs" Link="Persistence/ModelCellHighlight.cs" />

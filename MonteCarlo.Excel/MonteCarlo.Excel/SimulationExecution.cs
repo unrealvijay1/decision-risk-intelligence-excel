@@ -5,13 +5,15 @@ namespace MonteCarlo.Excel;
 public static class SimulationExecution
 {
     public static SimulationExecutionResult Run(int trials, IReadOnlyList<AssumptionDefinition> assumptions,
-        IReadOnlyList<ForecastDefinition> forecasts, ISimulationWorkbook workbook, ValidationResult? savedValidation = null)
+        IReadOnlyList<ForecastDefinition> forecasts, ISimulationWorkbook workbook, ValidationResult? savedValidation = null,
+        Func<AssumptionDefinition, double, double>? sampleTransform = null, CancellationToken cancellation = default, IReadOnlyList<AssumptionCorrelation>? correlations = null)
     {
-        return Run(new SimulationSettings(trials), assumptions, forecasts, workbook, savedValidation);
+        return Run(new SimulationSettings(trials), assumptions, forecasts, workbook, savedValidation, sampleTransform, cancellation, correlations);
     }
 
     public static SimulationExecutionResult Run(SimulationSettings settings, IReadOnlyList<AssumptionDefinition> assumptions,
-        IReadOnlyList<ForecastDefinition> forecasts, ISimulationWorkbook workbook, ValidationResult? savedValidation = null)
+        IReadOnlyList<ForecastDefinition> forecasts, ISimulationWorkbook workbook, ValidationResult? savedValidation = null,
+        Func<AssumptionDefinition, double, double>? sampleTransform = null, CancellationToken cancellation = default, IReadOnlyList<AssumptionCorrelation>? correlations = null)
     {
         int trials = settings.TrialCount;
         var outcome = new SimulationExecutionResult();
@@ -26,6 +28,26 @@ public static class SimulationExecution
         if (savedValidation != null) outcome.Validation.Errors.AddRange(savedValidation.Errors);
         outcome.Validation.Errors.AddRange(SimulationValidation.ValidateModel(trials, assumptions, forecasts).Errors);
         if (!outcome.Validation.IsValid) return outcome;
+        GaussianDependence? dependence = null;
+        var correlatedIndices = new Dictionary<AssumptionDefinition, int>();
+        double[] gaussian = [];
+        try
+        {
+            if (correlations is { Count: > 0 })
+            {
+                dependence = new GaussianDependence(assumptions.Select(ScenarioSimulationService.Identity).ToArray(), correlations);
+                gaussian = new double[dependence.Ids.Count];
+                var index = dependence.Ids.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var assumption in assumptions)
+                    if (index.TryGetValue(ScenarioSimulationService.Identity(assumption), out int i)) correlatedIndices.Add(assumption, i);
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            outcome.Validation.Add("Assumption Correlations", ex.Message, "Review the configured relationships.");
+            return outcome;
+        }
         var inputs = new Dictionary<AssumptionDefinition, ISimulationCell>();
         var outputs = new Dictionary<ForecastDefinition, ISimulationCell>();
         var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -110,9 +132,15 @@ public static class SimulationExecution
             bool stop = false;
             for (int i = 0; i < trials && !stop; i++)
             {
+                cancellation.ThrowIfCancellationRequested();
+                dependence?.NextGaussian(random, gaussian);
                 foreach (var assumption in assumptions)
                 {
-                    double sample = GenerateSample(assumption, random);
+                    double sample = correlatedIndices.TryGetValue(assumption, out int correlatedIndex)
+                        ? DistributionQuantile.FromGaussian((DistributionKind)assumption.Distribution, gaussian[correlatedIndex],
+                            assumption.Parameter1, assumption.Parameter2, assumption.Parameter3, assumption.Parameter4)
+                        : GenerateSample(assumption, random);
+                    if (sampleTransform != null) sample = sampleTransform(assumption, sample);
                     if (!double.IsFinite(sample))
                     {
                         outcome.Validation.Add(inputs[assumption].Identity,

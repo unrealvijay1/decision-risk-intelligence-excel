@@ -34,7 +34,8 @@ public static class SimulationService
                 return invalid;
             }
             return SimulationExecution.Run(settings, SimulationModel.Assumptions.ToArray(),
-                SimulationModel.Forecasts.ToArray(), new ExcelSimulationWorkbook(app, workbook), validation);
+                SimulationModel.Forecasts.ToArray(), new ExcelSimulationWorkbook(app, workbook), validation,
+                correlations: WorkbookPersistence.LoadCorrelations((object)workbook));
         }
         catch (Exception ex) { return new SimulationExecutionResult { DiagnosticException = ex }; }
     }

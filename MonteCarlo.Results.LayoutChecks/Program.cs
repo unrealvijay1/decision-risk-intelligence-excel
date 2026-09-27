@@ -7,8 +7,12 @@ using System.Windows.Forms;
 internal static class Program
 {
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
+        if (args.Contains("--correlation-performance")) { CorrelationPerformanceChecks.Run(); return; }
+        if (args.Contains("--live-scenarios")) { ScenarioLiveChecks.Run(); return; }
+        CorrelationLayoutChecks.Run();
+        ScenarioLayoutChecks.Run();
         ExcelDnaUtil.Application = new PersistenceApplication { ActiveWorkbook = new PersistenceWorkbook() };
         foreach (var mode in new[] { SimulationSeedMode.Automatic, SimulationSeedMode.Fixed })
         foreach (float scale in new[] { 1f, 1.25f, 1.5f })

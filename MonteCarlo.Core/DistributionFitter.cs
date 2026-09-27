@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -1041,7 +1041,7 @@ namespace MonteCarlo.Core
         // STANDARD NORMAL CDF
         // =========================================================
 
-        private static double StandardNormalCDF(
+        internal static double StandardNormalCDF(
             double x)
         {
             return
