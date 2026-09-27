@@ -61,6 +61,14 @@ namespace MonteCarlo.Excel
               getImage='GetRibbonImage'
               onAction='OnModelManager'/>
 
+          <button
+              id='ClearCellDefinitionButton'
+              label='Clear Cell Definition'
+              screentip='Remove the selected cell definition'
+              supertip='Remove the Monte Carlo definition from one selected cell and restore its original fill. The cell value or formula is preserved.'
+              size='normal'
+              onAction='OnClearCellDefinition'/>
+
         </group>
 
 
@@ -195,6 +203,24 @@ namespace MonteCarlo.Excel
         // DEFINE / EDIT ASSUMPTION
         // =========================================================
 
+        public void OnClearCellDefinition(IRibbonControl control)
+        {
+            try
+            {
+                dynamic app = ExcelDnaUtil.Application;
+                var result = ModelDefinitionDeletion.ClearSelectedCell((object?)app.Selection,
+                    (title, message) => MessageBox.Show(message, title, MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes);
+                if (result == DeleteDefinitionResult.InvalidSelection)
+                    MessageBox.Show(ModelDefinitionDeletion.SelectionMessage, "Monte Carlo");
+                else if (result == DeleteDefinitionResult.NoDefinition)
+                    MessageBox.Show(ModelDefinitionDeletion.NoDefinitionMessage, "Monte Carlo");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Monte Carlo", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
         public void OnDefineAssumption(
             IRibbonControl control)
         {

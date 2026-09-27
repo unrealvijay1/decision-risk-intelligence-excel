@@ -41,6 +41,7 @@ namespace MonteCarlo.Excel
                 assumption.CellLink = EnsureCellLink(workbook, assumption.CellLink, assumption.SheetName, assumption.CellAddress);
             foreach (var forecast in SimulationModel.Forecasts)
                 forecast.CellLink = EnsureCellLink(workbook, forecast.CellLink, forecast.SheetName, forecast.CellAddress);
+            var originalFills = ModelCellHighlight.BeforeSave(workbook, configSheet);
             configSheet.Cells.Clear();
             // Text metadata must never become worksheet formulas.
             configSheet.Range["A:D"].NumberFormat = "@";
@@ -151,6 +152,7 @@ namespace MonteCarlo.Excel
 
 
                 configSheet.Cells[row, 10].Value2 = assumption.CellLink;
+                ModelCellHighlight.ApplyRow(workbook, configSheet, row, "Assumption", assumption.SheetName, assumption.CellAddress, assumption.CellLink, originalFills);
                 row++;
             }
 
@@ -219,6 +221,7 @@ namespace MonteCarlo.Excel
 
                 configSheet.Cells[row, 10].Value2 = forecast.CellLink;
                 WriteTargetSettings(configSheet, row, forecast.TargetSettings);
+                ModelCellHighlight.ApplyRow(workbook, configSheet, row, "Forecast", forecast.SheetName, forecast.CellAddress, forecast.CellLink, originalFills);
                 row++;
             }
 
@@ -245,14 +248,14 @@ namespace MonteCarlo.Excel
             if (!LastLoadValidation.IsValid) ReportRestoreProblem?.Invoke(LastLoadValidation.UserMessage);
         }
 
-        public static ValidationResult LoadModelForSimulation()
+        public static ValidationResult LoadModelForSimulation(bool restoreHighlights = true)
         {
             var validation = new ValidationResult();
-            LoadModelCore(validation);
+            LoadModelCore(validation, restoreHighlights);
             return validation;
         }
 
-        private static void LoadModelCore(ValidationResult? validation)
+        private static void LoadModelCore(ValidationResult? validation, bool restoreHighlights)
         {
             dynamic excelApp =
                 ExcelDnaUtil.Application;
@@ -332,7 +335,7 @@ namespace MonteCarlo.Excel
                     LoadAssumption(
                         configSheet,
                         row,
-                        newLayout, validation);
+                        newLayout, validation, restoreHighlights);
                 }
 
 
@@ -345,7 +348,7 @@ namespace MonteCarlo.Excel
                     LoadForecast(
                         configSheet,
                         row,
-                        newLayout, validation);
+                        newLayout, validation, restoreHighlights);
                 }
 
 
@@ -434,6 +437,7 @@ namespace MonteCarlo.Excel
             }
 
 
+            ModelCellHighlight.BeforeSave(workbook, configSheet, clear: true);
             bool originalDisplayAlerts =
                 excelApp.DisplayAlerts;
 
@@ -461,7 +465,7 @@ namespace MonteCarlo.Excel
         private static void LoadAssumption(
             dynamic configSheet,
             int row,
-            bool newLayout, ValidationResult? validation)
+            bool newLayout, ValidationResult? validation, bool restoreHighlights)
         {
             string sheetName =
                 Convert.ToString(
@@ -597,6 +601,7 @@ namespace MonteCarlo.Excel
             }
 
 
+            if (restoreHighlights) ModelCellHighlight.ApplyRow(configSheet.Parent, configSheet, row, "Assumption", sheetName, cellAddress, cellLink);
             SimulationModel.Assumptions.Add(
                 new AssumptionDefinition
                 {
@@ -635,7 +640,7 @@ namespace MonteCarlo.Excel
         private static void LoadForecast(
             dynamic configSheet,
             int row,
-            bool newLayout, ValidationResult? validation)
+            bool newLayout, ValidationResult? validation, bool restoreHighlights)
         {
             string sheetName =
                 Convert.ToString(
@@ -703,6 +708,7 @@ namespace MonteCarlo.Excel
             }
 
 
+            if (restoreHighlights) ModelCellHighlight.ApplyRow(configSheet.Parent, configSheet, row, "Forecast", sheetName, cellAddress, cellLink);
             SimulationModel.Forecasts.Add(
                 new ForecastDefinition
                 {
@@ -752,9 +758,11 @@ namespace MonteCarlo.Excel
             string[] headers = { "TargetConfigured", "Target", "TargetDirection", "RequestedConfidence" };
             for (int i = 0; i < headers.Length; i++) sheet.Cells[1, 11 + i].Value2 = headers[i];
             sheet.Cells[row, 11].Value2 = settings == null ? null : "Yes";
-            sheet.Cells[row, 12].Value2 = settings?.Target;
+            // Box Nullable<double> before the dynamic COM boundary. Empty values become
+            // null (VT_EMPTY); passing Nullable<double> directly can make COM unwrap .Value.
+            sheet.Cells[row, 12].Value2 = (object?)settings?.Target;
             sheet.Cells[row, 13].Value2 = settings?.Direction?.ToString();
-            sheet.Cells[row, 14].Value2 = settings?.RequestedConfidence;
+            sheet.Cells[row, 14].Value2 = (object?)settings?.RequestedConfidence;
         }
 
         private static ForecastTargetSettings? ReadTargetSettings(dynamic sheet, int row, ValidationResult? validation)

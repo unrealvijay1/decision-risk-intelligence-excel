@@ -23,6 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ModelDefinitionDeletion.cs" Link="Persistence/ModelDefinitionDeletion.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ForecastEditDraft.cs" Link="Persistence/ForecastEditDraft.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ModelCellHighlight.cs" Link="Persistence/ModelCellHighlight.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/WorkbookPersistence.cs" Link="Persistence/WorkbookPersistence.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ExcelSimulationWorkbook.cs" Link="Persistence/ExcelSimulationWorkbook.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationService.cs" Link="Persistence/SimulationService.cs" />

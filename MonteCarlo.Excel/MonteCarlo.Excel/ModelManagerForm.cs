@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using ExcelDna.Integration;
 
@@ -825,41 +825,13 @@ namespace MonteCarlo.Excel
         {
             try
             {
-                string currentName =
-                    GetForecastName(
-                        forecast);
-
-
-                string? newName =
-                    ShowNameDialog(
-                        "Edit Forecast",
-                        "Forecast name:",
-                        currentName);
-
-
-                if (newName == null)
+                using var form = new ForecastEditForm(forecast);
+                if (form.ShowDialog(this) != DialogResult.OK) return;
+                if (!form.Draft.TryApply(forecast, out string? error))
                 {
+                    MessageBox.Show(this, error, "Edit Forecast");
                     return;
                 }
-
-
-                newName =
-                    newName.Trim();
-
-
-                if (string.IsNullOrWhiteSpace(
-                        newName))
-                {
-                    newName =
-                        $"{forecast.SheetName}!" +
-                        $"{forecast.CellAddress}";
-                }
-
-
-                forecast.Name =
-                    newName;
-
-
                 WorkbookPersistence
                     .SaveModel();
 
@@ -892,264 +864,15 @@ namespace MonteCarlo.Excel
             }
 
 
-            ListViewItem selectedItem =
-                listView.SelectedItems[0];
-
-
-            // -----------------------------------------------------
-            // DELETE ASSUMPTION
-            // -----------------------------------------------------
-
-            if (
-                selectedItem.Tag
-                is AssumptionDefinition assumption)
+            try
             {
-                string assumptionName =
-                    GetAssumptionName(
-                        assumption);
-
-
-                DialogResult confirmation =
-                    MessageBox.Show(
-                        $"Delete assumption '{assumptionName}'?\n\n" +
-                        $"Cell: {assumption.SheetName}!" +
-                        $"{assumption.CellAddress}",
-                        "Monte Carlo",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question);
-
-
-                if (confirmation !=
-                    DialogResult.Yes)
-                {
-                    return;
-                }
-
-
-                SimulationModel.Assumptions
-                    .RemoveAll(
-                        x =>
-                            string.Equals(
-                                x.SheetName,
-                                assumption.SheetName,
-                                StringComparison.OrdinalIgnoreCase)
-                            &&
-                            string.Equals(
-                                x.CellAddress,
-                                assumption.CellAddress,
-                                StringComparison.OrdinalIgnoreCase));
-
-
-                WorkbookPersistence
-                    .SaveModel();
-
-
-                LoadModelIntoList();
-
-
-                return;
+                var result = ModelDefinitionDeletion.Delete(listView.SelectedItems[0].Tag!,
+                    (title, message) => MessageBox.Show(this, message, title, MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes);
+                if (result == DeleteDefinitionResult.Deleted) LoadModelIntoList();
             }
-
-
-            // -----------------------------------------------------
-            // DELETE FORECAST
-            // -----------------------------------------------------
-
-            if (
-                selectedItem.Tag
-                is ForecastDefinition forecast)
-            {
-                string forecastName =
-                    GetForecastName(
-                        forecast);
-
-
-                DialogResult confirmation =
-                    MessageBox.Show(
-                        $"Delete forecast '{forecastName}'?\n\n" +
-                        $"Cell: {forecast.SheetName}!" +
-                        $"{forecast.CellAddress}",
-                        "Monte Carlo",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question);
-
-
-                if (confirmation !=
-                    DialogResult.Yes)
-                {
-                    return;
-                }
-
-
-                SimulationModel.Forecasts
-                    .RemoveAll(
-                        x =>
-                            string.Equals(
-                                x.SheetName,
-                                forecast.SheetName,
-                                StringComparison.OrdinalIgnoreCase)
-                            &&
-                            string.Equals(
-                                x.CellAddress,
-                                forecast.CellAddress,
-                                StringComparison.OrdinalIgnoreCase));
-
-
-                WorkbookPersistence
-                    .SaveModel();
-
-
-                LoadModelIntoList();
-            }
+            catch (Exception ex) { ShowError(ex); }
         }
-
-
-        // =========================================================
-        // NAME DIALOG
-        // =========================================================
-
-        private static string? ShowNameDialog(
-            string title,
-            string labelText,
-            string currentValue)
-        {
-            using Form dialog =
-                new Form
-                {
-                    Text =
-                        title,
-
-                    Width =
-                        400,
-
-                    Height =
-                        180,
-
-                    StartPosition =
-                        FormStartPosition.CenterParent,
-
-                    FormBorderStyle =
-                        FormBorderStyle.FixedDialog,
-
-                    MaximizeBox =
-                        false,
-
-                    MinimizeBox =
-                        false
-                };
-
-
-            Label label =
-                new Label
-                {
-                    Text =
-                        labelText,
-
-                    Left =
-                        20,
-
-                    Top =
-                        25,
-
-                    Width =
-                        120
-                };
-
-
-            TextBox textBox =
-                new TextBox
-                {
-                    Left =
-                        140,
-
-                    Top =
-                        20,
-
-                    Width =
-                        210,
-
-                    Text =
-                        currentValue
-                };
-
-
-            Button btnOK =
-                new Button
-                {
-                    Text =
-                        "OK",
-
-                    Left =
-                        190,
-
-                    Top =
-                        70,
-
-                    Width =
-                        75,
-
-                    DialogResult =
-                        DialogResult.OK
-                };
-
-
-            Button btnCancel =
-                new Button
-                {
-                    Text =
-                        "Cancel",
-
-                    Left =
-                        275,
-
-                    Top =
-                        70,
-
-                    Width =
-                        75,
-
-                    DialogResult =
-                        DialogResult.Cancel
-                };
-
-
-            dialog.Controls.Add(
-                label);
-
-            dialog.Controls.Add(
-                textBox);
-
-            dialog.Controls.Add(
-                btnOK);
-
-            dialog.Controls.Add(
-                btnCancel);
-
-
-            dialog.AcceptButton =
-                btnOK;
-
-
-            dialog.CancelButton =
-                btnCancel;
-
-
-            if (dialog.ShowDialog()
-                != DialogResult.OK)
-            {
-                return null;
-            }
-
-
-            return
-                textBox.Text;
-        }
-
-
-        // =========================================================
-        // ERROR
-        // =========================================================
-
         private static void ShowError(
             Exception ex)
         {

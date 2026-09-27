@@ -46,7 +46,7 @@ namespace MonteCarlo.Core.Tests
                 foreach (var pair in sheet.Cells.Items)
                 {
                     var cell = next.Cells[pair.Key.Row, pair.Key.Column];
-                    cell.Value2 = pair.Value.Value2; cell.Location = pair.Value.Location;
+                    cell.Interior = pair.Value.Interior.Copy(); cell.Formula = pair.Value.Formula; cell.Value2 = pair.Value.Value2; cell.Location = pair.Value.Location;
                     cell.Deleted = pair.Value.Deleted; cell.NumberFormat = pair.Value.NumberFormat;
                 }
             }
@@ -127,6 +127,7 @@ namespace MonteCarlo.Core.Tests
         public int Column { get; }
         public string Location { get; set; }
         public bool Deleted { get; set; }
+        public PersistenceInterior Interior { get; set; } = new();
         public object? Value2 { get; set; }
         public object? Formula { get; set; }
         public object? Formula2 { get; set; }
@@ -136,6 +137,10 @@ namespace MonteCarlo.Core.Tests
         public bool Locked => false;
         public bool MergeCells => false;
         public string NumberFormat { get; set; } = "General";
+        public string Font { get; set; } = "Original font";
+        public string Borders { get; set; } = "Original borders";
+        public string Alignment { get; set; } = "Original alignment";
+        public string Protection { get; set; } = "Original protection";
         public string Text => Value2 is ExcelCellError error ? error.Name : Convert.ToString(Value2) ?? "";
         public PersistenceCount Cells => new(1);
         public PersistenceCount Areas => new(1);
@@ -169,4 +174,46 @@ namespace MonteCarlo.Core.Tests
             Items.Add(Name, new(workbook.Worksheets[sheet].Range[RefersTo[(separator + 2)..]], Visible));
         }
     }
+}
+
+public sealed class PersistenceInterior
+{
+    public PersistenceGradient Gradient { get; set; } = new();
+    public int Pattern { get; set; } = -4142;
+    public double Color { get; set; }
+    public int ColorIndex { get; set; } = -4142;
+    public int ThemeColor { get; set; }
+    public double TintAndShade { get; set; }
+    public double PatternColor { get; set; }
+    public int PatternColorIndex { get; set; } = -4105;
+    public int PatternThemeColor { get; set; }
+    public double PatternTintAndShade { get; set; }
+    public PersistenceInterior Copy() => (PersistenceInterior)MemberwiseClone();
+}
+public sealed class PersistenceGradient
+{
+    public double Degree { get; set; }
+    public double RectangleLeft { get; set; }
+    public double RectangleRight { get; set; }
+    public double RectangleTop { get; set; }
+    public double RectangleBottom { get; set; }
+    public PersistenceStops ColorStops { get; } = new();
+}
+public sealed class PersistenceStops
+{
+    public List<PersistenceStop> Items { get; } = new();
+    public int Count => Items.Count;
+    public PersistenceStop Item(int index) => Items[index - 1];
+    public void Clear() => Items.Clear();
+    public PersistenceStop Add(double position)
+    {
+        var stop = new PersistenceStop { Position = position }; Items.Add(stop); return stop;
+    }
+}
+public sealed class PersistenceStop
+{
+    public double Position { get; set; }
+    public double Color { get; set; }
+    public int ThemeColor { get; set; }
+    public double TintAndShade { get; set; }
 }
