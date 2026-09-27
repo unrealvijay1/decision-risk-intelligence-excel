@@ -83,6 +83,7 @@ namespace MonteCarlo.Excel
               size='large'
               getImage='GetRibbonImage'
               onAction='OnRunSimulation'/>
+          <button id='SimulationSettingsButton' label='Simulation Settings' size='normal' onAction='OnSimulationSettings'/>
 
           <button
               id='ReloadModelButton'
@@ -203,6 +204,18 @@ namespace MonteCarlo.Excel
         // DEFINE / EDIT ASSUMPTION
         // =========================================================
 
+        public void OnSimulationSettings(IRibbonControl control)
+        {
+            try
+            {
+                var validation = new ValidationResult();
+                var settings = WorkbookPersistence.LoadSimulationSettings(validation);
+                if (!validation.IsValid) MessageBox.Show(validation.UserMessage, "Simulation Settings");
+                using var form = new SimulationSettingsForm(settings);
+                if (form.ShowDialog() == DialogResult.OK) WorkbookPersistence.SaveSimulationSettings(form.Settings);
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "Simulation Settings"); }
+        }
         public void OnClearCellDefinition(IRibbonControl control)
         {
             try
@@ -639,32 +652,7 @@ namespace MonteCarlo.Excel
                 // SIMULATION SETTINGS
                 // =================================================
 
-                using SimulationSettingsForm settingsForm =
-                    new SimulationSettingsForm();
-
-
-                if (settingsForm.ShowDialog()
-                    != DialogResult.OK)
-                {
-                    return;
-                }
-
-
-                int trials =
-                    settingsForm.Trials;
-
-
-                if (trials <= 0)
-                {
-                    return;
-                }
-
-
-                // =================================================
-                // RUN SIMULATION
-                // =================================================
-
-                SimulationExecutionResult outcome = SimulationService.TryRun(trials);
+                SimulationExecutionResult outcome = SimulationService.TryRun();
                 if (!outcome.Succeeded)
                 {
                     if (outcome.DiagnosticException != null)

@@ -42,7 +42,11 @@ namespace MonteCarlo.Excel
             foreach (var forecast in SimulationModel.Forecasts)
                 forecast.CellLink = EnsureCellLink(workbook, forecast.CellLink, forecast.SheetName, forecast.CellAddress);
             var originalFills = ModelCellHighlight.BeforeSave(workbook, configSheet);
+            // Definition saves preserve the separate workbook settings block verbatim, even if malformed.
+            object?[] savedSettings = new object?[4];
+            for (int i = 0; i < 4; i++) savedSettings[i] = configSheet.Cells[1, 17 + i].Value2;
             configSheet.Cells.Clear();
+            for (int i = 0; i < 4; i++) configSheet.Cells[1, 17 + i].Value2 = savedSettings[i];
             // Text metadata must never become worksheet formulas.
             configSheet.Range["A:D"].NumberFormat = "@";
             configSheet.Range["I:N"].NumberFormat = "@";
@@ -448,7 +452,9 @@ namespace MonteCarlo.Excel
                     false;
 
 
-                configSheet.Delete();
+                if (configSheet.Cells[1, 17].Value2 != null)
+                    SaveModel(); // Empty definition lists, retaining workbook-level settings.
+                else configSheet.Delete();
             }
             finally
             {
@@ -797,6 +803,38 @@ namespace MonteCarlo.Excel
             return valid ? new ForecastTargetSettings(targetValue, directionValue, confidenceValue) : null;
         }
 
+        public static SimulationSettings LoadSimulationSettings(ValidationResult validation)
+        {
+            dynamic app = ExcelDnaUtil.Application;
+            if (app.ActiveWorkbook == null) return new();
+            dynamic sheet = FindConfigSheet(app.ActiveWorkbook);
+            if (sheet == null) return new();
+            object? marker = sheet.Cells[1, 17].Value2;
+            object? trials = sheet.Cells[1, 18].Value2;
+            object? mode = sheet.Cells[1, 19].Value2;
+            object? seed = sheet.Cells[1, 20].Value2;
+            if (marker == null && trials == null && mode == null && seed == null) return new();
+            if (Equals(marker, "SimulationSettingsV1") &&
+                Enum.TryParse(Convert.ToString(mode), out SimulationSeedMode parsedMode) && Enum.IsDefined(parsedMode) &&
+                SimulationSettings.TryParse(Convert.ToString(trials) ?? "", parsedMode, Convert.ToString(seed) ?? "", out var settings, out _))
+                return settings;
+            validation.Add("Simulation settings", "The saved simulation settings are invalid.",
+                "Open Simulation Settings, choose valid trials and seed, then Save.");
+            return new();
+        }
+
+        public static void SaveSimulationSettings(SimulationSettings settings)
+        {
+            if (settings.Validate() is string error) throw new ArgumentException(error);
+            dynamic app = ExcelDnaUtil.Application;
+            if (app.ActiveWorkbook == null) throw new InvalidOperationException("Open a workbook first.");
+            dynamic sheet = GetOrCreateConfigSheet(app.ActiveWorkbook);
+            sheet.Cells[1, 17].Value2 = "SimulationSettingsV1";
+            sheet.Cells[1, 18].Value2 = settings.TrialCount;
+            sheet.Cells[1, 19].Value2 = settings.SeedMode.ToString();
+            sheet.Cells[1, 20].Value2 = settings.SeedMode == SimulationSeedMode.Fixed ? (object?)settings.FixedSeed : null;
+            sheet.Visible = 2;
+        }
         private const string LinkPrefix = "_MC_Cell_";
 
         private static object? ReadOptional(dynamic sheet, int row, int column, string header)

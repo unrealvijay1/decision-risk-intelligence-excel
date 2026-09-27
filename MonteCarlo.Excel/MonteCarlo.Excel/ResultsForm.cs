@@ -21,7 +21,7 @@ namespace MonteCarlo.Excel
         private readonly Label lblProbabilityCaption = new Label();
         private readonly Label lblP50 = new Label();
         private readonly Label lblP80 = new Label();
-        private readonly Label[] detailValues = new Label[7];
+        private readonly Label[] detailValues = new Label[9];
         private readonly ToolTip fullText = new ToolTip();
         private readonly Font primaryFont = new Font("Segoe UI", 28);
         private readonly Font neutralFont = new Font("Segoe UI", 16);
@@ -37,6 +37,8 @@ namespace MonteCarlo.Excel
         private readonly TextBox txtTarget;
         private readonly TextBox txtConfidence;
         private readonly Label lblRequiredTarget;
+        private readonly Label lblCalculatedProbability = new Label();
+        private double? displayedTargetValue;
         private enum TargetOrigin { Manual, Confidence }
         private TargetOrigin targetOrigin;
         private double? acceptedConfidence;
@@ -371,6 +373,7 @@ namespace MonteCarlo.Excel
             txtTarget.TextChanged += (_, _) =>
             {
                 if (updatingTargetText || restoringTargetSettings) return;
+                displayedTargetValue = null;
                 targetOrigin = TargetOrigin.Manual;
                 acceptedConfidence = null;
                 if (lblRequiredTarget != null) lblRequiredTarget.Text = "";
@@ -476,8 +479,8 @@ namespace MonteCarlo.Excel
             {
                 Left = 30, Top = 515, Width = 435, Height = 126
             };
-            var targetTab = new TabPage("Target → Confidence");
-            var confidenceTab = new TabPage("Confidence → Target");
+            var targetTab = new TabPage("Target → Probability");
+            var confidenceTab = new TabPage("Probability → Target");
             calculationTabs.TabPages.AddRange(new[] { targetTab, confidenceTab });
             Controls.Add(calculationTabs);
             targetTab.Controls.AddRange(new Control[]
@@ -487,9 +490,9 @@ namespace MonteCarlo.Excel
             btnCalculate.SetBounds(300, 3, 100, 28);
 
             confidenceTab.Controls.Add(new Label
-                { Text = "Confidence Level", Left = 5, Top = 9, Width = 115, Height = 24 });
+                { Text = "Probability", Left = 5, Top = 9, Width = 115, Height = 24 });
             txtConfidence = new TextBox
-                { Text = "80", Left = 125, Top = 5, Width = 115, AccessibleName = "Confidence Level (%)" };
+                { Text = "80", Left = 125, Top = 5, Width = 115, AccessibleName = "Probability (%)" };
             confidenceTab.Controls.Add(txtConfidence);
             confidenceTab.Controls.Add(new Label
                 { Text = "%", Left = 245, Top = 9, Width = 25, Height = 24 });
@@ -674,152 +677,218 @@ namespace MonteCarlo.Excel
         {
             SuspendLayout();
             var oldControls = Controls.Cast<Control>().ToArray();
-            var root = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, Padding = new Padding(24, 12, 24, 12),
-                ColumnCount = 2, RowCount = 6
-            };
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 57));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 43));
-            foreach (int height in new[] { 40, 38, 112 })
-                root.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             void Place(TableLayoutPanel parent, Control control, int column, int row)
             {
                 control.Dock = DockStyle.Fill;
                 control.Margin = new Padding(3);
                 parent.Controls.Add(control, column, row);
             }
+            var root = Grid(1, 4);
+            root.Padding = new Padding(20, 12, 20, 12);
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            title.AutoSize = true;
             Place(root, title, 0, 0);
-            root.SetColumnSpan(title, 2);
             var forecast = Grid(2, 1);
-            forecast.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 85));
+            forecast.AutoSize = true;
+            forecast.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             forecast.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            forecastLabel.AutoSize = true;
+            forecastLabel.TextAlign = ContentAlignment.MiddleLeft;
             Place(forecast, forecastLabel, 0, 0);
             Place(forecast, cmbForecast, 1, 0);
             cmbForecast.DropDownWidth = 900;
             Place(root, forecast, 0, 1);
-            root.SetColumnSpan(forecast, 2);
 
-            var summary = Grid(4, 1);
-            foreach (int share in new[] { 38, 26, 18, 18 })
-                summary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, share));
-            var primary = Grid(1, 2);
-            primary.RowStyles.Add(new RowStyle(SizeType.Percent, 60));
-            primary.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
-            Place(primary, lblSuccess, 0, 0);
-            Place(primary, lblProbabilityCaption, 0, 1);
-            Place(summary, primary, 0, 0);
-            Label[] landmarks = { lblTargetSummary, lblP50, lblP80 };
-            string[] captions = { "Target", "P50", "P80" };
-            for (int i = 0; i < landmarks.Length; i++)
-            {
-                var block = Grid(1, 2);
-                block.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-                block.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-                Place(block, new Label { Text = captions[i] }, 0, 0);
-                landmarks[i].Font = neutralFont;
-                landmarks[i].AutoEllipsis = true;
-                Place(block, landmarks[i], 0, 1);
-                Place(summary, block, i + 1, 0);
-            }
-            Place(root, summary, 0, 2);
-            root.SetColumnSpan(summary, 2);
+            var tabs = new TabControl { Name = "ResultsTabs", Dock = DockStyle.Fill };
+            var forecastPage = new TabPage("Forecast");
+            var sensitivityPage = new TabPage("Sensitivity");
+            var statisticsPage = new TabPage("Statistics");
+            tabs.TabPages.AddRange(new[] { forecastPage, sensitivityPage, statisticsPage });
+            tabs.SelectedIndex = 0;
+            Place(root, tabs, 0, 2);
 
-            var chart = Grid(1, 3);
-            chart.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+            var forecastBody = Grid(2, 1);
+            forecastBody.Padding = new Padding(8);
+            forecastBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
+            forecastBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 66));
+            forecastBody.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            var controlsColumn = Grid(1, 3);
+            controlsColumn.Name = "ForecastControls";
+            controlsColumn.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            controlsColumn.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            controlsColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            Place(forecastBody, controlsColumn, 0, 0);
+            forecastPage.Controls.Add(forecastBody);
+            var summary = Grid(1, 2);
+            summary.AutoSize = true;
+            summary.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            summary.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var probability = Grid(1, 2);
+            probability.AutoSize = true;
+            probability.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            probability.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            lblSuccess.AutoSize = lblProbabilityCaption.AutoSize = true;
+            Place(probability, lblSuccess, 0, 0);
+            Place(probability, lblProbabilityCaption, 0, 1);
+            Place(summary, probability, 0, 0);
+            var target = Grid(1, 2);
+            target.AutoSize = true;
+            target.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            target.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            Place(target, new Label { Text = "Target", AutoSize = true }, 0, 0);
+            lblTargetSummary.Font = neutralFont;
+            lblTargetSummary.AutoSize = true;
+            Place(target, lblTargetSummary, 0, 1);
+            Place(summary, target, 0, 1);
+            Place(controlsColumn, summary, 0, 0);
+
+            var chart = Grid(1, 2);
+            chart.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             chart.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            chart.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
             var chartHeader = Grid(2, 1);
+            chartHeader.AutoSize = true;
             chartHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            chartHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175));
+            chartHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            chartTitle.AutoSize = true;
             Place(chartHeader, chartTitle, 0, 0);
             Place(chartHeader, cmbChartView, 1, 0);
             Place(chart, chartHeader, 0, 0);
             Place(chart, histogramPanel, 0, 1);
-            var legends = Grid(2, 1);
-            legends.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            legends.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            Place(legends, lblSuccessLegend, 0, 0);
-            Place(legends, lblMissLegend, 1, 0);
-            Place(chart, legends, 0, 2);
-            Place(root, chart, 0, 3);
+            Place(forecastBody, chart, 1, 0);
             histogramPanel.Resize += (_, _) => histogramPanel.Invalidate();
 
-            var decision = Grid(1, 5);
-            decision.Padding = new Padding(12, 0, 0, 0);
-            foreach (int height in new[] { 28, 22, 34 })
-                decision.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
-            decision.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            decision.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-            Place(decision, new Label { Text = "Decision tools", Font = new Font("Segoe UI", 11) }, 0, 0);
-            Place(decision, new Label { Text = "Success when" }, 0, 1);
-            Place(decision, cmbSuccessDirection, 0, 2);
-            Place(decision, calculationTabs, 0, 3);
-            // Keep this footer space empty to preserve the approved lower-section layout.
+            var decision = Grid(1, 3);
+            decision.AutoSize = true;
+
+            decision.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            decision.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            decision.RowStyles.Add(new RowStyle(SizeType.Absolute, 140));
+            var toolsTitle = new Label { Text = "Decision Tools", AutoSize = true };
+            Place(decision, toolsTitle, 0, 0);
+
+            var direction = Grid(1, 2);
+            direction.AutoSize = true;
+            direction.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            direction.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            Place(direction, new Label { Text = "Success when:", AutoSize = true }, 0, 0);
+            Place(direction, cmbSuccessDirection, 0, 1);
+            Place(decision, direction, 0, 1);
             foreach (TabPage page in calculationTabs.TabPages)
             {
                 var input = page.Controls.OfType<TextBox>().Single();
                 var button = page.Controls.OfType<Button>().Single();
                 var inputLabel = page.Controls.OfType<Label>().First();
                 var body = Grid(2, 3);
-                body.Padding = new Padding(6);
+                body.AutoSize = true;
+                body.Padding = new Padding(4);
+                page.BackColor = SystemColors.Control;
+                body.BackColor = SystemColors.Control;
                 body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-                body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-                body.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-                body.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-                body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-                inputLabel.Text = input == txtConfidence ? "Confidence Level (%)" : "Target Value";
+                body.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                for (int i = 0; i < 3; i++) body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                inputLabel.Text = input == txtConfidence ? "Probability (%)" : "Target Value";
+                inputLabel.AutoSize = true;
+                button.AutoSize = true;
+                button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
                 Place(body, inputLabel, 0, 0);
                 body.SetColumnSpan(inputLabel, 2);
                 Place(body, input, 0, 1);
                 Place(body, button, 1, 1);
-                Label output = input == txtConfidence ? lblRequiredTarget : new Label
-                    { Text = "Actual probability appears in the summary above.", AutoEllipsis = true };
+                Label output = input == txtConfidence ? lblRequiredTarget : lblCalculatedProbability;
+                output.AutoSize = true;
                 Place(body, output, 0, 2);
                 body.SetColumnSpan(output, 2);
                 foreach (Control unused in page.Controls.Cast<Control>().ToArray()) unused.Dispose();
                 page.Controls.Add(body);
             }
-            Place(root, decision, 1, 3);
-
-            var sensitivity = Grid(1, 2);
-            sensitivity.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-            sensitivity.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            sensitivityTitle.Font = new Font("Segoe UI", 9);
-            Place(sensitivity, sensitivityTitle, 0, 0);
-            Place(sensitivity, tornadoPanel, 0, 1);
-            tornadoPanel.Resize += (_, _) => tornadoPanel.Invalidate();
-            Place(root, sensitivity, 0, 4);
-            var details = Grid(2, 8);
-            details.Padding = new Padding(12, 0, 0, 0);
-            details.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
-            details.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58));
-            for (int i = 0; i < 8; i++) details.RowStyles.Add(new RowStyle(SizeType.Percent, 12.5f));
-            Place(details, new Label { Text = "Details" }, 0, 0);
-            string[] names = { "Trials", "Mean", "Std Dev", "Minimum", "Maximum", "P10", "P90" };
-            for (int i = 0; i < names.Length; i++)
+            Place(decision, calculationTabs, 0, 2);
+            // TabControl does not auto-size to its pages. Measure their content rather than
+            // feeding its previously stretched/scaled bounds back into an AutoSize row.
+            decision.Layout += (_, _) =>
             {
-                Place(details, new Label { Text = names[i] }, 0, i + 1);
-                detailValues[i] = new Label { AutoEllipsis = true, TextAlign = ContentAlignment.TopRight };
-                Place(details, detailValues[i], 1, i + 1);
+                int height = calculationTabs.TabPages.Cast<TabPage>()
+                    .Max(page => page.Controls[0].GetPreferredSize(new Size(calculationTabs.Width, 0)).Height)
+                    + calculationTabs.ItemSize.Height + 8;
+                if (decision.RowStyles[2].Height != height) decision.RowStyles[2].Height = height;
+            };
+            Place(controlsColumn, decision, 0, 1);
+
+            var sensitivity = Grid(1, 3);
+            sensitivity.Padding = new Padding(12);
+            sensitivity.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            sensitivity.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            sensitivity.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            sensitivityTitle.AutoSize = true;
+            Place(sensitivity, sensitivityTitle, 0, 0);
+            Place(sensitivity, new Label { Text = "Shows which assumptions have the greatest influence on the selected forecast.", AutoSize = true }, 0, 1);
+            Place(sensitivity, tornadoPanel, 0, 2);
+            sensitivityPage.Controls.Add(sensitivity);
+            tornadoPanel.Resize += (_, _) => tornadoPanel.Invalidate();
+
+            var statistics = Grid(2, 1);
+            statistics.Padding = new Padding(16);
+            statistics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+            statistics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+            statisticsPage.Controls.Add(statistics);
+            TableLayoutPanel Section(string heading, string[] names, Label[] values)
+            {
+                var table = Grid(2, names.Length + 1);
+                table.Dock = DockStyle.Top;
+                table.AutoSize = true;
+                table.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+                table.Padding = new Padding(8);
+                table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48));
+                table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
+                for (int i = 0; i <= names.Length; i++) table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                var label = new Label { Text = heading, AutoSize = true };
+                Place(table, label, 0, 0); table.SetColumnSpan(label, 2);
+                for (int i = 0; i < names.Length; i++)
+                {
+                    Place(table, new Label { Text = names[i], AutoSize = true, TextAlign = ContentAlignment.MiddleLeft }, 0, i + 1);
+                    values[i].AutoSize = true;
+                    values[i].Font = Font;
+                    values[i].TextAlign = ContentAlignment.MiddleRight;
+                    Place(table, values[i], 1, i + 1);
+                }
+                return table;
             }
-            Place(root, details, 1, 4);
-            var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
-            buttons.Controls.AddRange(new Control[] { export, close });
-            Place(root, buttons, 0, 5);
-            root.SetColumnSpan(buttons, 2);
+            for (int i = 0; i < detailValues.Length; i++) detailValues[i] = new Label();
+            statistics.Controls.Add(Section("Distribution Statistics",
+                new[] { "Mean", "Std Dev", "Minimum", "Maximum", "P10", "P50", "P80", "P90" },
+                new[] { detailValues[1], detailValues[2], detailValues[3], detailValues[4], detailValues[5], lblP50, lblP80, detailValues[6] }), 0, 0);
+            statistics.Controls.Add(Section("Simulation Run", new[] { "Trials", "Seed Mode", "Seed" },
+                new[] { detailValues[0], detailValues[8], detailValues[7] }), 1, 0);
+
+            var footer = Grid(2, 1);
+            footer.AutoSize = true;
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            export.AutoSize = close.AutoSize = true;
+            export.Anchor = AnchorStyles.Left;
+            close.Anchor = AnchorStyles.Right;
+            footer.Controls.Add(export, 0, 0); footer.Controls.Add(close, 1, 0);
+            Place(root, footer, 0, 3);
+            tabs.SelectedIndexChanged += (_, _) => { histogramPanel.Invalidate(); tornadoPanel.Invalidate(); };
             foreach (Control unused in oldControls)
-                if (unused.Parent == this) unused.Dispose();
+                if (unused.Parent == this) { if (unused == lblSuccessLegend || unused == lblMissLegend) Controls.Remove(unused); else unused.Dispose(); }
             Controls.Add(root);
             ResumeLayout(true);
         }
 
-        private static TableLayoutPanel Grid(int columns, int rows) => new TableLayoutPanel
-            { Dock = DockStyle.Fill, ColumnCount = columns, RowCount = rows, Margin = new Padding(0) };
-
+        private static TableLayoutPanel Grid(int columns, int rows)
+        {
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = columns, RowCount = rows,
+                Margin = new Padding(0), AutoSizeMode = AutoSizeMode.GrowAndShrink
+            };
+            if (columns == 1) grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            return grid;
+        }
         private void ForecastSelectionChanged(
             object? sender,
             EventArgs e)
@@ -850,6 +919,7 @@ namespace MonteCarlo.Excel
 
         private void RefreshForecastDisplay()
         {
+            displayedTargetValue = null;
             restoringTargetSettings = true;
             var savedTarget = currentForecastResult.Forecast.TargetSettings;
             targetOrigin = TargetOrigin.Manual;
@@ -876,7 +946,7 @@ namespace MonteCarlo.Excel
             string[] details = { currentForecastResult.Trials.ToString("N0"),
                 FormatValue(currentForecastResult.Mean), FormatValue(currentForecastResult.StandardDeviation),
                 FormatValue(currentForecastResult.Minimum), FormatValue(currentForecastResult.Maximum),
-                FormatValue(currentForecastResult.P10), FormatValue(currentForecastResult.P90) };
+                FormatValue(currentForecastResult.P10), FormatValue(currentForecastResult.P90), simulationResult.ActualSeedUsed?.ToString() ?? "Unavailable", simulationResult.Settings?.SeedMode.ToString() ?? "Unavailable" };
             for (int i = 0; i < details.Length; i++)
             {
                 detailValues[i].Text = details[i];
@@ -897,7 +967,7 @@ namespace MonteCarlo.Excel
                 currentTarget = savedTarget.Target;
                 acceptedConfidence = savedTarget.RequestedConfidence;
                 targetOrigin = acceptedConfidence.HasValue ? TargetOrigin.Confidence : TargetOrigin.Manual;
-                txtTarget.Text = currentTarget?.ToString("R", CultureInfo.CurrentCulture) ?? "";
+                SetTargetDisplay(currentTarget);
                 if (acceptedConfidence.HasValue) txtConfidence.Text = acceptedConfidence.Value.ToString("R", CultureInfo.CurrentCulture);
                 RefreshSuccessDisplay();
             }
@@ -941,6 +1011,7 @@ namespace MonteCarlo.Excel
             object? sender,
             EventArgs e)
         {
+            double? exactDisplayedTarget = displayedTargetValue;
             currentTarget = null;
             RefreshSuccessDisplay();
             histogramPanel.Invalidate();
@@ -958,16 +1029,26 @@ namespace MonteCarlo.Excel
                 return;
             }
 
+            target = exactDisplayedTarget ?? target;
             // Keep probability semantics unchanged, but never plot non-finite targets.
             targetOrigin = TargetOrigin.Manual;
             acceptedConfidence = null;
             lblRequiredTarget.Text = "";
             currentTarget = double.IsFinite(target) ? target : null;
+            SetTargetDisplay(currentTarget);
             PersistTargetSettings();
             RefreshSuccessDisplay();
 
         }
 
+        private void SetTargetDisplay(double? target)
+        {
+            bool previous = updatingTargetText;
+            updatingTargetText = true;
+            try { txtTarget.Text = target.HasValue ? FormatValue(target.Value) : ""; }
+            finally { updatingTargetText = previous; }
+            displayedTargetValue = target;
+        }
         private void PersistTargetSettings()
         {
             if (restoringTargetSettings) return;
@@ -989,7 +1070,7 @@ namespace MonteCarlo.Excel
             if (!double.TryParse(txtConfidence.Text, out double confidence) ||
                 !double.IsFinite(confidence) || confidence < 0 || confidence > 100)
             {
-                MessageBox.Show("Enter a confidence level from 0 to 100.", "Monte Carlo",
+                MessageBox.Show("Enter a probability from 0 to 100.", "Monte Carlo",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -1011,7 +1092,7 @@ namespace MonteCarlo.Excel
 
             // Never round-trip display text through the probability calculation.
             updatingTargetText = true;
-            try { txtTarget.Text = target.ToString("R", CultureInfo.CurrentCulture); }
+            try { SetTargetDisplay(target); }
             finally { updatingTargetText = false; }
             currentTarget = target;
             targetOrigin = TargetOrigin.Confidence;
@@ -1111,6 +1192,7 @@ namespace MonteCarlo.Excel
                 }
                 graphics.DrawLine(curvePen, previousX, top, left + width, top);
 
+                DrawRegionLabels(graphics, min, max, left, top, width, height);
                 // Identical stored percentiles and marker geometry in both views.
                 DrawHistogramMarkers(graphics, area, min, max, left, top, width, height,
                     markerFont, 4, rowHeight);
@@ -1147,9 +1229,10 @@ namespace MonteCarlo.Excel
             lblSuccessLegend.Visible = false;
             lblMissLegend.Visible = false;
             lblRequiredTarget.Text = "";
+            lblCalculatedProbability.Text = "Probability: —";
             lblSuccess.Font = neutralFont;
             lblSuccess.Text = "No target defined";
-            lblProbabilityCaption.Text = "Enter a target or choose a confidence level.";
+            lblProbabilityCaption.Text = "Enter a target or choose a probability.";
             lblTargetSummary.Text = "—";
             if (currentTarget.HasValue)
             {
@@ -1165,7 +1248,8 @@ namespace MonteCarlo.Excel
                         : currentForecastResult.ProbabilityGreaterThanOrEqual(target);
                     lblSuccess.Font = primaryFont;
                     lblSuccess.Text = $"{probability:P1}";
-                    lblProbabilityCaption.Text = $"Probability of achieving {comparison} {FormatValue(target)}";
+                    lblCalculatedProbability.Text = $"Probability: {probability:P1}";
+                    lblProbabilityCaption.Text = "Probability of achieving target";
                     lblSuccessLegend.Text = $"Success: {comparison} target";
                     lblMissLegend.Text = currentDirection == TargetDirection.AtOrBelow ? "Miss: > target" : "Miss: < target";
                     lblSuccessLegend.Visible = true;
@@ -1173,9 +1257,7 @@ namespace MonteCarlo.Excel
                 }
                 if (targetOrigin == TargetOrigin.Confidence && acceptedConfidence.HasValue)
                 {
-                    string description = currentDirection.HasValue ? "confidence" : "cumulative probability";
-                    lblRequiredTarget.Text = $"Requested {description}: {acceptedConfidence.Value:0.########}%\n" +
-                        $"Target at {acceptedConfidence.Value:0.########}% {description}: {FormatValue(target)}";
+                    lblRequiredTarget.Text = $"Target: {FormatValue(target)}";
                 }
             }
             fullText.SetToolTip(lblTargetSummary, lblTargetSummary.Text);
@@ -1189,12 +1271,37 @@ namespace MonteCarlo.Excel
             base.Dispose(disposing);
             if (disposing)
             {
+                lblSuccessLegend.Dispose();
+                lblMissLegend.Dispose();
                 fullText.Dispose();
                 primaryFont.Dispose();
                 neutralFont.Dispose();
             }
         }
 
+        private void DrawRegionLabels(Graphics graphics, double min, double max, int left, int top, int width, int height)
+        {
+            if (!currentDirection.HasValue || !currentTarget.HasValue || width <= 0 || height <= 0) return;
+            var position = ChartValuePosition.Calculate(currentTarget, min, max);
+            if (position.Range == ChartValueRange.Invalid) return;
+            float boundary = position.Range == ChartValueRange.BelowRange ? left :
+                position.Range == ChartValueRange.AboveRange ? left + width : ValueToX(currentTarget.Value, min, max, left, width);
+            bool below = currentDirection == TargetDirection.AtOrBelow;
+            using var font = new Font("Segoe UI", 8);
+            void LabelRegion(float x, float regionWidth, bool success)
+            {
+                string text = success ? "Success" : "Miss";
+                SizeF size = graphics.MeasureString(text, font);
+                if (regionWidth < size.Width + 8 || height < size.Height + 16) return;
+                float labelX = x + (regionWidth - size.Width) / 2;
+                float labelY = top + height - size.Height - 12;
+                using var background = new SolidBrush(success ? SuccessRegionColor : MissRegionColor);
+                graphics.FillRectangle(background, labelX - 2, labelY, size.Width + 4, size.Height);
+                graphics.DrawString(text, font, SystemBrushes.ControlText, labelX, labelY);
+            }
+            LabelRegion(left, boundary - left, below);
+            LabelRegion(boundary, left + width - boundary, !below);
+        }
         private void DrawTargetRegions(Graphics graphics, double min, double max,
             int left, int top, int width, int height)
         {
@@ -1404,6 +1511,7 @@ namespace MonteCarlo.Excel
             }
 
 
+            DrawRegionLabels(graphics, min, max, leftMargin, topMargin, chartWidth, chartHeight);
             DrawHistogramMarkers(graphics, area, min, max, leftMargin,
                 topMargin, chartWidth, chartHeight, markerFont, markerHeaderTop, markerRowHeight);
 
@@ -1438,50 +1546,57 @@ namespace MonteCarlo.Excel
             {
                 targetX = ValueToX(currentTarget!.Value, min, max, left, width);
                 graphics.DrawLine(targetPen, targetX.Value, top, targetX.Value, top + height);
-                graphics.DrawLine(targetPen, targetX.Value - 4, top, targetX.Value + 4, top);
+
             }
 
             // All lines precede text. Separate rows identify even exactly coincident markers.
             DrawMarkerLabel(graphics, area, font,
-                "P50", p50X,
-                headerTop, rowHeight, left, SystemColors.ControlDarkDark);
+                MarkerText("P50", currentForecastResult.P50), p50X,
+                headerTop, rowHeight, left, top, SystemColors.ControlDarkDark);
             DrawMarkerLabel(graphics, area, font,
-                "P80", p80X,
-                headerTop + rowHeight, rowHeight, left, SystemColors.ControlDarkDark);
+                MarkerText("P80", currentForecastResult.P80), p80X,
+                headerTop + rowHeight, rowHeight, left, top, SystemColors.ControlDarkDark);
 
             if (targetPosition.Range == ChartValueRange.Invalid) return;
-            string targetLabel = "Target";
+            string targetLabel = MarkerText("Target", currentTarget!.Value, currentDirection);
             if (targetPosition.Range == ChartValueRange.BelowRange)
                 targetLabel += " — below simulated range";
             else if (targetPosition.Range == ChartValueRange.AboveRange)
                 targetLabel += " — above simulated range";
             DrawMarkerLabel(graphics, area, font, targetLabel, targetX,
-                headerTop + 2 * rowHeight, rowHeight, left, Color.DarkOrange);
+                headerTop + 2 * rowHeight, rowHeight, left, top, Color.DarkOrange);
         }
 
+        private static string MarkerText(string name, double value, TargetDirection? direction = null) =>
+            name + " " + (direction == TargetDirection.AtOrBelow ? "≤ " : direction == TargetDirection.AtOrAbove ? "≥ " : "") + FormatValue(value);
+        private static RectangleF MarkerLabelBounds(Rectangle area, float measuredWidth,
+            float? markerX, int rowTop, int rowHeight, int left)
+        {
+            float width = Math.Min(measuredWidth, Math.Max(0, area.Width - 4));
+            float x = Math.Clamp(markerX.HasValue ? markerX.Value - width / 2 : left,
+                area.Left + 2, area.Right - 2 - width);
+            return new RectangleF(x, rowTop, width, rowHeight - 5);
+        }
         private static void DrawMarkerLabel(Graphics graphics, Rectangle area, Font font,
-            string text, float? markerX, int rowTop, int rowHeight, int left, Color markerColor)
+            string text, float? markerX, int rowTop, int rowHeight, int left, int plotTop, Color markerColor)
         {
             using StringFormat format = new StringFormat
             {
                 Trimming = StringTrimming.EllipsisCharacter,
                 FormatFlags = StringFormatFlags.NoWrap
             };
-            float availableWidth = Math.Max(0, area.Width - 4);
-            float labelWidth = Math.Min(graphics.MeasureString(text, font).Width + 4, availableWidth);
-            float labelX = Math.Clamp(markerX.HasValue ? markerX.Value + 5 : left,
-                area.Left + 2, area.Right - 2 - labelWidth);
-            using Brush textBrush = new SolidBrush(SystemColors.ControlText);
-            graphics.DrawString(text, font, textBrush,
-                new RectangleF(labelX, rowTop, labelWidth, rowHeight - 5), format);
-
-            if (!markerX.HasValue) return;
-            // Tick remains at the exact X coordinate, below its label even at panel edges.
-            float tickY = rowTop + rowHeight - 3;
-            using Pen tickPen = new Pen(markerColor, 1);
-            float labelAnchor = Math.Clamp(markerX.Value, labelX, labelX + labelWidth);
-            graphics.DrawLine(tickPen, labelAnchor, tickY, markerX.Value, tickY);
-            graphics.DrawLine(tickPen, markerX.Value, tickY - 2, markerX.Value, tickY + 2);
+            RectangleF bounds = MarkerLabelBounds(area, graphics.MeasureString(text, font).Width + 4,
+                markerX, rowTop, rowHeight, left);
+            // Extend the actual marker vertically into its label band. No detached ticks
+            // or horizontal leaders; fixed rows keep close/coincident values distinct.
+            if (markerX.HasValue)
+            {
+                using var connector = new Pen(markerColor, markerColor == Color.DarkOrange ? 2.5f : 1.5f);
+                graphics.DrawLine(connector, markerX.Value, bounds.Bottom, markerX.Value, plotTop);
+            }
+            graphics.FillRectangle(SystemBrushes.Window, bounds);
+            using Brush textBrush = new SolidBrush(markerColor);
+            graphics.DrawString(text, font, textBrush, bounds, format);
         }
 
         // =========================================================

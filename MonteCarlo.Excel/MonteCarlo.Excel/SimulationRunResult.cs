@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MonteCarlo.Core;
@@ -544,6 +544,8 @@ namespace MonteCarlo.Excel
 
     public class SimulationRunResult
     {
+        public SimulationSettings? Settings { get; init; }
+        public int? ActualSeedUsed { get; init; }
         public int Trials { get; }
 
         public List<ForecastRunResult> ForecastResults { get; }

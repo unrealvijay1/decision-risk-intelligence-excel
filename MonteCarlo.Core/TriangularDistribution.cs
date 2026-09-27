@@ -1,4 +1,4 @@
-﻿namespace MonteCarlo.Core
+namespace MonteCarlo.Core
 {
     public static class TriangularDistribution
     {
@@ -7,7 +7,7 @@
         public static double Sample(
             double minimum,
             double mostLikely,
-            double maximum)
+            double maximum, Random? random = null)
         {
             if (minimum >= maximum)
                 throw new ArgumentException(
@@ -17,7 +17,7 @@
                 throw new ArgumentException(
                     "Most likely value must be between minimum and maximum.");
 
-            double u = _random.NextDouble();
+            double u = (random ?? _random).NextDouble();
 
             double c =
                 (mostLikely - minimum) /

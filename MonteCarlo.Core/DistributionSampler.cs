@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace MonteCarlo.Core
 {
@@ -24,7 +24,7 @@ namespace MonteCarlo.Core
             double parameter1,
             double parameter2,
             double parameter3 = 0,
-            double parameter4 = 0)
+            double parameter4 = 0, Random? random = null)
         {
             switch (distribution)
             {
@@ -33,7 +33,7 @@ namespace MonteCarlo.Core
                     return
                         NormalDistribution.Sample(
                             parameter1,
-                            parameter2);
+                            parameter2, random: random);
 
 
                 case DistributionKind.Triangular:
@@ -42,7 +42,7 @@ namespace MonteCarlo.Core
                         TriangularDistribution.Sample(
                             parameter1,
                             parameter2,
-                            parameter3);
+                            parameter3, random: random);
 
 
                 case DistributionKind.Pert:
@@ -51,7 +51,7 @@ namespace MonteCarlo.Core
                         PertDistribution.Sample(
                             parameter1,
                             parameter2,
-                            parameter3);
+                            parameter3, random: random);
 
 
                 case DistributionKind.Uniform:
@@ -59,7 +59,7 @@ namespace MonteCarlo.Core
                     return
                         UniformDistribution.Sample(
                             parameter1,
-                            parameter2);
+                            parameter2, random: random);
 
 
                 case DistributionKind.Lognormal:
@@ -67,7 +67,7 @@ namespace MonteCarlo.Core
                     return
                         LognormalDistribution.Sample(
                             parameter1,
-                            parameter2);
+                            parameter2, random: random);
 
 
                 case DistributionKind.Beta:
@@ -77,7 +77,7 @@ namespace MonteCarlo.Core
                             parameter1,
                             parameter2,
                             parameter3,
-                            parameter4);
+                            parameter4, random: random);
 
 
                 default:

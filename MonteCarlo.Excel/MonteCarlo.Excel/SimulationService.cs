@@ -11,11 +11,14 @@ public static class SimulationService
         return outcome.Succeeded ? outcome.Result! : throw new SimulationRunException(outcome);
     }
 
-    public static SimulationExecutionResult TryRun(int trials)
+    public static SimulationExecutionResult TryRun() => TryRunCore(null);
+    public static SimulationExecutionResult TryRun(int trials) => TryRunCore(new SimulationSettings(trials));
+    private static SimulationExecutionResult TryRunCore(SimulationSettings? requested)
     {
         try
         {
             var validation = WorkbookPersistence.LoadModelForSimulation();
+            var settings = requested ?? WorkbookPersistence.LoadSimulationSettings(validation);
             if (!validation.IsValid)
             {
                 var invalid = new SimulationExecutionResult();
@@ -30,7 +33,7 @@ public static class SimulationService
                 invalid.Validation.Add("Workbook", "No workbook is open.", "Open the workbook containing your simulation model.");
                 return invalid;
             }
-            return SimulationExecution.Run(trials, SimulationModel.Assumptions.ToArray(),
+            return SimulationExecution.Run(settings, SimulationModel.Assumptions.ToArray(),
                 SimulationModel.Forecasts.ToArray(), new ExcelSimulationWorkbook(app, workbook), validation);
         }
         catch (Exception ex) { return new SimulationExecutionResult { DiagnosticException = ex }; }

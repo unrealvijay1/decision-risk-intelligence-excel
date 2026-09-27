@@ -1,4 +1,4 @@
-﻿namespace MonteCarlo.Core
+namespace MonteCarlo.Core
 {
     public static class PertDistribution
     {
@@ -8,7 +8,7 @@
             double minimum,
             double mostLikely,
             double maximum,
-            double lambda = 4.0)
+            double lambda = 4.0, Random? random = null)
         {
             if (minimum >= maximum)
                 throw new ArgumentException(
@@ -37,7 +37,7 @@
                 range;
 
             double betaSample =
-                SampleBeta(alpha, beta);
+                SampleBeta(alpha, beta, random: random);
 
             return minimum +
                    betaSample * range;
@@ -46,27 +46,27 @@
 
         private static double SampleBeta(
             double alpha,
-            double beta)
+            double beta, Random? random = null)
         {
             double x =
-                SampleGamma(alpha);
+                SampleGamma(alpha, random: random);
 
             double y =
-                SampleGamma(beta);
+                SampleGamma(beta, random: random);
 
             return x / (x + y);
         }
 
 
         private static double SampleGamma(
-            double shape)
+            double shape, Random? random = null)
         {
             if (shape < 1.0)
             {
                 double u =
-                    _random.NextDouble();
+                    (random ?? _random).NextDouble();
 
-                return SampleGamma(shape + 1.0) *
+                return SampleGamma(shape + 1.0, random: random) *
                        Math.Pow(
                            u,
                            1.0 / shape);
@@ -86,7 +86,7 @@
 
                 do
                 {
-                    x = SampleStandardNormal();
+                    x = SampleStandardNormal(random: random);
 
                     v = 1.0 + c * x;
                 }
@@ -95,7 +95,7 @@
                 v = v * v * v;
 
                 double u =
-                    _random.NextDouble();
+                    (random ?? _random).NextDouble();
 
                 if (u <
                     1.0 -
@@ -117,13 +117,13 @@
         }
 
 
-        private static double SampleStandardNormal()
+        private static double SampleStandardNormal(Random? random = null)
         {
             double u1 =
-                1.0 - _random.NextDouble();
+                1.0 - (random ?? _random).NextDouble();
 
             double u2 =
-                1.0 - _random.NextDouble();
+                1.0 - (random ?? _random).NextDouble();
 
             return
                 Math.Sqrt(

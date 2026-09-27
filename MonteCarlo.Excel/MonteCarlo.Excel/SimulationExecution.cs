@@ -7,7 +7,22 @@ public static class SimulationExecution
     public static SimulationExecutionResult Run(int trials, IReadOnlyList<AssumptionDefinition> assumptions,
         IReadOnlyList<ForecastDefinition> forecasts, ISimulationWorkbook workbook, ValidationResult? savedValidation = null)
     {
+        return Run(new SimulationSettings(trials), assumptions, forecasts, workbook, savedValidation);
+    }
+
+    public static SimulationExecutionResult Run(SimulationSettings settings, IReadOnlyList<AssumptionDefinition> assumptions,
+        IReadOnlyList<ForecastDefinition> forecasts, ISimulationWorkbook workbook, ValidationResult? savedValidation = null)
+    {
+        int trials = settings.TrialCount;
         var outcome = new SimulationExecutionResult();
+        if (settings.Validate() is string error)
+        {
+            outcome.Validation.Add("Simulation settings", error, "Open Simulation Settings and correct the settings.");
+            return outcome;
+        }
+        int actualSeed = settings.SeedMode == SimulationSeedMode.Fixed ? settings.FixedSeed!.Value :
+            System.Security.Cryptography.RandomNumberGenerator.GetInt32(int.MaxValue);
+        var random = new Random(actualSeed);
         if (savedValidation != null) outcome.Validation.Errors.AddRange(savedValidation.Errors);
         outcome.Validation.Errors.AddRange(SimulationValidation.ValidateModel(trials, assumptions, forecasts).Errors);
         if (!outcome.Validation.IsValid) return outcome;
@@ -97,7 +112,7 @@ public static class SimulationExecution
             {
                 foreach (var assumption in assumptions)
                 {
-                    double sample = GenerateSample(assumption);
+                    double sample = GenerateSample(assumption, random);
                     if (!double.IsFinite(sample))
                     {
                         outcome.Validation.Add(inputs[assumption].Identity,
@@ -137,7 +152,7 @@ public static class SimulationExecution
         }
         if (outcome.Validation.IsValid && outcome.DiagnosticException == null && outcome.RestorationFailures.Count == 0)
         {
-            try { outcome.Result = new SimulationRunResult(trials, forecastSamples, assumptionSamples); }
+            try { outcome.Result = new SimulationRunResult(trials, forecastSamples, assumptionSamples) { Settings = settings, ActualSeedUsed = actualSeed }; }
             catch (Exception ex) { outcome.DiagnosticException = ex; }
         }
         return outcome;
@@ -178,8 +193,7 @@ public static class SimulationExecution
         // DISTRIBUTION SAMPLING
         // =========================================================
 
-        private static double GenerateSample(
-            AssumptionDefinition assumption)
+        private static double GenerateSample(AssumptionDefinition assumption, Random random)
         {
             MonteCarlo.Core.DistributionKind distribution =
                 assumption.Distribution switch
@@ -229,6 +243,6 @@ public static class SimulationExecution
                         assumption.Parameter1,
                         assumption.Parameter2,
                         assumption.Parameter3,
-                        assumption.Parameter4);
+                        assumption.Parameter4, random);
         }
 }

@@ -1,129 +1,41 @@
-﻿using System;
 using System.Windows.Forms;
 
-namespace MonteCarlo.Excel
+namespace MonteCarlo.Excel;
+
+public sealed class SimulationSettingsForm : Form
 {
-    public class SimulationSettingsForm : Form
+    public SimulationSettings Settings { get; private set; }
+    public SimulationSettingsForm(SimulationSettings settings)
     {
-        private readonly NumericUpDown numTrials;
-
-        public int Trials { get; private set; }
-
-        public SimulationSettingsForm()
-        {
-            Text = "Simulation Settings";
-
-            Width = 360;
-            Height = 220;
-
-            StartPosition =
-                FormStartPosition.CenterScreen;
-
-            FormBorderStyle =
-                FormBorderStyle.FixedDialog;
-
-            MaximizeBox = false;
-            MinimizeBox = false;
-
-
-            Label lblTrials = new()
-            {
-                Text = "Number of Trials",
-                Left = 25,
-                Top = 35,
-                Width = 120
-            };
-
-
-            numTrials = new NumericUpDown
-            {
-                Left = 160,
-                Top = 30,
-                Width = 140,
-
-                Minimum = 100,
-                Maximum = 1000000,
-
-                Value = 10000,
-
-                Increment = 1000,
-
-                ThousandsSeparator = true
-            };
-
-
-            Label lblHint = new()
-            {
-                Text =
-                    "Recommended: 10,000 trials",
-                Left = 160,
-                Top = 65,
-                Width = 160
-            };
-
-
-            Button btnRun = new()
-            {
-                Text = "Run",
-                Left = 140,
-                Top = 115,
-                Width = 75
-            };
-
-
-            Button btnCancel = new()
-            {
-                Text = "Cancel",
-                Left = 225,
-                Top = 115,
-                Width = 75
-            };
-
-
-            btnRun.Click +=
-                (_, _) =>
-                {
-                    Trials =
-                        (int)numTrials.Value;
-
-                    DialogResult =
-                        DialogResult.OK;
-
-                    Close();
-                };
-
-
-            btnCancel.Click +=
-                (_, _) =>
-                {
-                    DialogResult =
-                        DialogResult.Cancel;
-
-                    Close();
-                };
-
-
-            Controls.Add(
-                lblTrials);
-
-            Controls.Add(
-                numTrials);
-
-            Controls.Add(
-                lblHint);
-
-            Controls.Add(
-                btnRun);
-
-            Controls.Add(
-                btnCancel);
-
-
-            AcceptButton =
-                btnRun;
-
-            CancelButton =
-                btnCancel;
-        }
+        Settings = settings;
+        Text = "Simulation Settings"; ClientSize = new System.Drawing.Size(430, 255);
+        FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = MinimizeBox = false;
+        StartPosition = FormStartPosition.CenterParent;
+        var preset = new ComboBox { Left = 175, Top = 20, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
+        foreach (int count in SimulationSettings.Presets) preset.Items.Add(count.ToString("N0"));
+        preset.Items.Add("Custom");
+        var trials = new TextBox { Left = 175, Top = 60, Width = 220, Text = settings.TrialCount.ToString() };
+        preset.SelectedIndex = SimulationSettings.Presets.ToList().IndexOf(settings.TrialCount);
+        if (preset.SelectedIndex < 0) preset.SelectedIndex = 4;
+        trials.Enabled = preset.SelectedIndex == 4;
+        preset.SelectedIndexChanged += (_, _) => {
+            trials.Enabled = preset.SelectedIndex == 4;
+            if (!trials.Enabled) trials.Text = SimulationSettings.Presets[preset.SelectedIndex].ToString();
+        };
+        var mode = new ComboBox { Left = 175, Top = 100, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
+        mode.Items.AddRange(new object[] { "Automatic", "Fixed" }); mode.SelectedIndex = (int)settings.SeedMode;
+        var seed = new TextBox { Left = 175, Top = 140, Width = 220, Text = settings.FixedSeed?.ToString() ?? "", Enabled = mode.SelectedIndex == 1 };
+        mode.SelectedIndexChanged += (_, _) => seed.Enabled = mode.SelectedIndex == 1;
+        var save = new Button { Text = "Save", Left = 225, Top = 200, Width = 80 };
+        var cancel = new Button { Text = "Cancel", Left = 315, Top = 200, Width = 80, DialogResult = DialogResult.Cancel };
+        save.Click += (_, _) => {
+            if (!SimulationSettings.TryParse(trials.Text, (SimulationSeedMode)mode.SelectedIndex, seed.Text, out var parsed, out var error))
+            { MessageBox.Show(this, error, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            Settings = parsed; DialogResult = DialogResult.OK; Close();
+        };
+        Controls.AddRange(new Control[] { preset, trials, mode, seed, save, cancel });
+        string[] labels = { "Trials preset", "Number of trials", "Seed mode", "Fixed seed" };
+        for (int i = 0; i < labels.Length; i++) Controls.Add(new Label { Text = labels[i], Left = 20, Top = 24 + 40 * i, Width = 150 });
+        AcceptButton = save; CancelButton = cancel;
     }
 }

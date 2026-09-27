@@ -1,4 +1,4 @@
-﻿namespace MonteCarlo.Core
+namespace MonteCarlo.Core
 {
     public static class LognormalDistribution
     {
@@ -6,7 +6,7 @@
 
         public static double Sample(
             double logMean,
-            double logStandardDeviation)
+            double logStandardDeviation, Random? random = null)
         {
             if (logStandardDeviation <= 0)
             {
@@ -15,7 +15,7 @@
             }
 
             double normal =
-                SampleStandardNormal();
+                SampleStandardNormal(random: random);
 
             return
                 Math.Exp(
@@ -24,15 +24,15 @@
                     normal);
         }
 
-        private static double SampleStandardNormal()
+        private static double SampleStandardNormal(Random? random = null)
         {
             double u1 =
                 1.0 -
-                _random.NextDouble();
+                (random ?? _random).NextDouble();
 
             double u2 =
                 1.0 -
-                _random.NextDouble();
+                (random ?? _random).NextDouble();
 
             return
                 Math.Sqrt(

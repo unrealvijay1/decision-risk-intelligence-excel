@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace MonteCarlo.Core
 {
@@ -19,7 +19,7 @@ namespace MonteCarlo.Core
 
         public static double Sample(
             double alpha,
-            double beta)
+            double beta, Random? random = null)
         {
             if (alpha <= 0)
             {
@@ -39,12 +39,12 @@ namespace MonteCarlo.Core
 
             double x =
                 SampleGamma(
-                    alpha);
+                    alpha, random: random);
 
 
             double y =
                 SampleGamma(
-                    beta);
+                    beta, random: random);
 
 
             return
@@ -63,7 +63,7 @@ namespace MonteCarlo.Core
             double minimum,
             double maximum,
             double alpha,
-            double beta)
+            double beta, Random? random = null)
         {
             if (maximum <= minimum)
             {
@@ -75,7 +75,7 @@ namespace MonteCarlo.Core
             double standardBeta =
                 Sample(
                     alpha,
-                    beta);
+                    beta, random: random);
 
 
             return
@@ -97,7 +97,7 @@ namespace MonteCarlo.Core
         // =========================================================
 
         private static double SampleGamma(
-            double shape)
+            double shape, Random? random = null)
         {
             if (shape <= 0)
             {
@@ -113,12 +113,12 @@ namespace MonteCarlo.Core
             if (shape < 1.0)
             {
                 double u =
-                    NextUniform();
+                    NextUniform(random: random);
 
 
                 return
                     SampleGamma(
-                        shape + 1.0)
+                        shape + 1.0, random: random)
                     *
                     Math.Pow(
                         u,
@@ -144,7 +144,7 @@ namespace MonteCarlo.Core
             while (true)
             {
                 double x =
-                    SampleStandardNormal();
+                    SampleStandardNormal(random: random);
 
 
                 double v =
@@ -165,7 +165,7 @@ namespace MonteCarlo.Core
 
 
                 double u =
-                    NextUniform();
+                    NextUniform(random: random);
 
 
                 if (
@@ -207,14 +207,14 @@ namespace MonteCarlo.Core
         // STANDARD NORMAL
         // =========================================================
 
-        private static double SampleStandardNormal()
+        private static double SampleStandardNormal(Random? random = null)
         {
             double u1 =
-                NextUniform();
+                NextUniform(random: random);
 
 
             double u2 =
-                NextUniform();
+                NextUniform(random: random);
 
 
             return
@@ -233,7 +233,7 @@ namespace MonteCarlo.Core
         // UNIFORM (0,1)
         // =========================================================
 
-        private static double NextUniform()
+        private static double NextUniform(Random? random = null)
         {
             double value;
 
@@ -241,7 +241,7 @@ namespace MonteCarlo.Core
             do
             {
                 value =
-                    Random.NextDouble();
+                    (random ?? Random).NextDouble();
             }
             while (value <= 0.0);
 

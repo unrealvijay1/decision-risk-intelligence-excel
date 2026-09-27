@@ -92,7 +92,7 @@ public static class SimulationValidation
         IReadOnlyList<ForecastDefinition> forecasts)
     {
         var result = new ValidationResult();
-        if (trials <= 0) result.Add("Simulation settings", "The trial count must be positive.", "Choose a positive number of trials.");
+        if (SimulationSettings.ValidateTrials(trials) is string error) result.Add("Simulation settings", error, "Open Simulation Settings.");
         if (assumptions.Count == 0) result.Add("Assumptions", "No assumptions are configured.", "Select an input cell and choose Define Assumption.");
         if (forecasts.Count == 0) result.Add("Forecasts", "No forecast is configured.", "Select an output cell and choose Define Forecast.");
         foreach (var assumption in assumptions)

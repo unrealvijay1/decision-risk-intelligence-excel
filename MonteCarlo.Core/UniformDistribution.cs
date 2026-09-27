@@ -1,4 +1,4 @@
-﻿namespace MonteCarlo.Core
+namespace MonteCarlo.Core
 {
     public static class UniformDistribution
     {
@@ -6,7 +6,7 @@
 
         public static double Sample(
             double minimum,
-            double maximum)
+            double maximum, Random? random = null)
         {
             if (minimum >= maximum)
             {
@@ -15,7 +15,7 @@
             }
 
             double u =
-                _random.NextDouble();
+                (random ?? _random).NextDouble();
 
             return
                 minimum +
