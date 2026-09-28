@@ -2,6 +2,9 @@
 <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
 <ItemGroup><ProjectReference Include="../MonteCarlo.Core.Tests/MonteCarlo.Core.Tests.csproj"/><Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ResultsForm.cs" Link="ResultsForm.cs"/></ItemGroup>
 <ItemGroup>
+<Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcConfigurationForm.cs" Link="SpcConfigurationForm.cs"/>
+<Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcResultsForm.cs" Link="SpcResultsForm.cs"/>
+<Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcChartPanel.cs" Link="SpcChartPanel.cs"/>
 <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/AssumptionCorrelationsForm.cs" Link="AssumptionCorrelationsForm.cs"/>
 <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ScenarioAnalysisForm.cs" Link="ScenarioAnalysisForm.cs"/>
 <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ScenarioComparisonForm.cs" Link="ScenarioComparisonForm.cs"/>

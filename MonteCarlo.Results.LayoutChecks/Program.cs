@@ -11,7 +11,9 @@ internal static class Program
     {
         if (args.Contains("--correlation-performance")) { CorrelationPerformanceChecks.Run(); return; }
         if (args.Contains("--live-scenarios")) { ScenarioLiveChecks.Run(); return; }
+        if (args.Contains("--live-spc")) { SpcLiveChecks.Run(); return; }
         CorrelationLayoutChecks.Run();
+        SpcLayoutChecks.Run();
         ScenarioLayoutChecks.Run();
         ExcelDnaUtil.Application = new PersistenceApplication { ActiveWorkbook = new PersistenceWorkbook() };
         foreach (var mode in new[] { SimulationSeedMode.Automatic, SimulationSeedMode.Fixed })

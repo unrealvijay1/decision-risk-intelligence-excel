@@ -43,3 +43,16 @@ and engine paths, correlated assumptions, an adjusted user-selected baseline, na
 state, one copy per comparison, completion/cancellation/failure, temporary-file deletion
 and owned process exit. It requires Windows and an installed Excel; it is not part of
 the platform-independent xUnit count or a substitute for customer-workbook testing.
+# SPC validation
+
+The default run includes SPC configuration/results checks at 100%, 125% and 150%
+geometry scaling, both chart paint paths and resize/footer checks. Set
+`RESULTS_LAYOUT_PREVIEW=1` to save SPC form and chart previews alongside the executable.
+Hidden native controls may omit their text in bitmap previews; these checks do not
+replace actual display-DPI and interactive range-picker testing.
+
+Run `dotnet run --project MonteCarlo.Results.LayoutChecks/MonteCarlo.Results.LayoutChecks.csproj --no-restore -- --live-spc`
+from the repository root for a private Excel instance and synthetic workbook. It checks
+the workbook analysis service, frozen limits after extending the source, strict errors,
+text/date labels, source formulas, tracked references, native chart export, save/reopen
+and process cleanup. It never attaches to an existing Excel process.

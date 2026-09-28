@@ -99,6 +99,11 @@ namespace MonteCarlo.Excel
         </group>
 
 
+        <group id='ProcessAnalysisGroup' label='Process Analysis'>
+          <button id='SpcAnalysisButton' label='SPC Analysis' size='large' imageMso='ChartLine'
+                  screentip='Analyze process behaviour with XmR charts' onAction='OnSpcAnalysis'/>
+        </group>
+
         <group id='MaintenanceGroup'
                label='Maintenance'>
 
@@ -539,6 +544,17 @@ namespace MonteCarlo.Excel
             {
                 System.Diagnostics.Trace.TraceError(ex.ToString());
                 MessageBox.Show(ex.Message, "Scenario Analysis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        public void OnSpcAnalysis(IRibbonControl control)
+        {
+            try { SpcAnalysisCommand.Show(); }
+            catch (ArgumentException ex) { MessageBox.Show(ex.Message, "SPC Analysis", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError(ex.ToString());
+                MessageBox.Show("SPC Analysis could not open. Check your license and that the workbook is available.", "SPC Analysis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 

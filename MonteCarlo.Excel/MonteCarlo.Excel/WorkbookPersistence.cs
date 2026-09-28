@@ -44,12 +44,14 @@ namespace MonteCarlo.Excel
             var originalFills = ModelCellHighlight.BeforeSave(workbook, configSheet);
             var savedScenarios = CaptureScenarioBlock(configSheet);
             var savedCorrelations = CorrelationsForModelSave(configSheet);
+            var savedSpc = CaptureSpcBlock(configSheet);
             // Definition saves preserve the separate workbook settings block verbatim, even if malformed.
             object?[] savedSettings = new object?[4];
             for (int i = 0; i < 4; i++) savedSettings[i] = configSheet.Cells[1, 17 + i].Value2;
             configSheet.Cells.Clear();
             RestoreScenarioBlock(configSheet, savedScenarios);
             WriteCorrelationBlock(configSheet, savedCorrelations);
+            WriteSpcBlock(configSheet, savedSpc);
             for (int i = 0; i < 4; i++) configSheet.Cells[1, 17 + i].Value2 = savedSettings[i];
             // Text metadata must never become worksheet formulas.
             configSheet.Range["A:D"].NumberFormat = "@";
@@ -470,7 +472,8 @@ namespace MonteCarlo.Excel
                     false;
 
 
-                if (configSheet.Cells[1, 17].Value2 != null || configSheet.Cells[1, 22].Value2 != null)
+                if (configSheet.Cells[1, 17].Value2 != null || configSheet.Cells[1, 22].Value2 != null ||
+                    ((object?[,])CaptureSpcBlock(configSheet)).Cast<object?>().Any(x => x != null))
                     SaveModel(); // Empty definition lists, retaining workbook-level settings.
                 else configSheet.Delete();
             }

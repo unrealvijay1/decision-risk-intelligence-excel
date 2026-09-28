@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcPersistence.cs" Link="Spc/SpcPersistence.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcDataReader.cs" Link="Spc/SpcDataReader.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcExporter.cs" Link="Spc/SpcExporter.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcAnalysisService.cs" Link="Spc/SpcAnalysisService.cs" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />

@@ -1,6 +1,6 @@
 # Monte Carlo for Excel — Project Context
 
-Last reconciled with source and tests: **2026-09-27**.
+Last reconciled with source and tests: **2026-09-28**.
 
 This is the persistent project handoff and source of truth for future Codex sessions.
 Read it before implementation. Verify relevant source before changing behavior; reconcile
@@ -16,7 +16,7 @@ Primary customer platform is **64-bit Excel**; builds also produce an x86 XLL.
 
 | Location (relative to repository root) | Responsibility |
 | --- | --- |
-| `MonteCarlo.Core/` | Sampling, fitting/preview, probability/CDF, chart helpers and scenario domain/transformation rules; `net10.0` |
+| `MonteCarlo.Core/` | Sampling, fitting/preview, probability/CDF, chart helpers, scenario rules and independent SPC/XmR mathematics; `net10.0` |
 | `MonteCarlo.Excel/MonteCarlo.Excel/` | Ribbon, model/UI, Excel COM adapters, persistence, execution, reporting and licensing; `net10.0-windows` |
 | `MonteCarlo.Excel/MonteCarlo.Excel.slnx` | Main solution |
 | `MonteCarlo.Core.Tests/` | xUnit; links production non-UI Excel source against workbook doubles |
@@ -36,7 +36,7 @@ Ribbon run opens a fresh modal `ResultsForm`; chart/calculator actions do not re
 
 - Ribbon groups: Model Setup (Define Assumption, Define Forecast, Model Manager, Correlations, Clear
   Cell Definition); Simulation (Run Simulation, Simulation Settings, Scenario Analysis, Reload Model);
-  Maintenance (Clear Model); Product (License). Export Report is in Results.
+  Process Analysis (SPC Analysis); Maintenance (Clear Model); Product (License). Export Report is in Results.
 - Six distributions: Normal (mean, SD), Lognormal (log mean, log SD), Uniform (min, max),
   Triangular and PERT (min, most likely, max), Beta (min, max, alpha, beta). Preserve
   parameter order across UI, sampling and persistence.
@@ -73,6 +73,7 @@ writing configuration does not automatically save the workbook file.
 | Q:T (17–20), row 1 only | `SimulationSettingsV1`, trial count, seed mode, optional fixed seed |
 | V:W (22–23) | V1=`ScenarioDefinitionsV2`, W1=JSON chunk count; V2 onward holds 30,000-character chunks; version V1 remains readable |
 | Y:Z (25–26) | Y1=`AssumptionCorrelationsV1`, Z1=chunk count; Y2 onward holds 30,000-character JSON chunks |
+| AB:AC (28–29) | AB1=`SpcAnalysisV1`, AC1=chunk count; AB2 onward holds 30,000-character JSON chunks for SPC configuration, tracked ranges and fixed baseline statistics |
 
 The legacy three-parameter/name-in-H and four-parameter/name-in-I layouts remain readable.
 Optional metadata is backward compatible. Text metadata is written as text to avoid formula
@@ -95,9 +96,9 @@ alignment or protection. Legacy rows without snapshots capture their current fil
 highlighting. Formatting failures are best-effort and traced: unavailable/protected/deleted
 cells can prevent restoration, and an original fill never captured cannot be reconstructed.
 
-Definition saves preserve the separate settings and scenario blocks verbatim, even if malformed.
+Definition saves preserve the separate settings, scenario and SPC blocks verbatim, even if malformed.
 Clear Model restores definition fills and removes definitions, retaining
-explicitly saved simulation settings and scenarios. Without either block it deletes the config
+explicitly saved simulation settings, scenarios and SPC. Without any of those blocks it deletes the config
 sheet. Deleted definitions lose their saved CellLink metadata, but the current code does
 not remove the corresponding hidden workbook names; unused names can remain. Older add-in
 versions may discard newer optional metadata when saving.
@@ -358,6 +359,69 @@ scrollable forecast context lists each probability/direction or target/direction
 has no P50/P80 or generic Success/Target/Direction columns. Normal Results, Statistics
 and Sensitivity retain their existing presentation and calculations.
 
+## Process Analysis / SPC V1
+
+The separate **Process Analysis → SPC Analysis** ribbon action opens `SpcConfigurationForm`;
+`SpcResultsForm` is independent of the simulation and scenario windows. `SpcAnalysisCommand`
+pins the source workbook, uses the existing hidden-form Excel `InputBox(Type: 8)` selection
+pattern and delegates to `SpcAnalysisService`. No simulation, forecasting, correlation or
+scenario mathematics are involved. One saved SPC configuration/baseline is supported per workbook.
+
+`SpcDataReader` accepts one contiguous row or column of 20–100,000 observations in existing
+order. Blank/text/error/non-finite observations are rejected with their index; nothing is
+silently dropped and no moving range bridges a gap. Excel error detection distinguishes
+error HRESULTs from legitimate numbers. Optional labels must have matching length; Excel
+dates remain readable even when narrow source columns display hashes. Cross-workbook and
+multi-area selections are rejected. Data/range selection is read-only until an explicit
+analysis action writes metadata.
+
+Core owns immutable configuration, baseline and signal records, `XmRCalculator` and the
+separate `SpcSignalDetector`. Baselines are all observations, first N or an inclusive selected
+contiguous observation period, with at least 20 observations. V1 explicitly uses the agreed
+conventional factors **2.66** and **3.268**: Individuals mean ± 2.66 × average successive
+baseline moving range; MR center = average moving range, UCL = 3.268 × that average, LCL = 0.
+Individuals LCL is not clamped to zero. Only pairs wholly within the baseline establish MR̄.
+The first observation has null MR; subsequent MR can use the last baseline observation.
+Scaled compensated means avoid sum overflow; non-finite ranges/limits, unrepresentable limits
+and zero-variation baselines are rejected with actionable guidance.
+
+**Establish / replace baseline** deliberately computes and saves limits. **Analyze** reuses
+the saved statistics, including after source values change or a longer source range is
+selected. Even “All observations” freezes at establishment. Baseline-option edits apply only
+when replacing it. Hidden `_MC_SPC_` workbook names track data, labels and baseline through
+renames/structural edits. A changed baseline length or broken link blocks reuse; no stale
+coordinate fallback exists. Unchanged names are reused; superseded names can remain, like
+existing cell tracking. Re-select the data/label ranges to include appended observations
+outside their tracked range. Limits are snapshots; historical source values are not persisted.
+
+Rules are individually configurable: strictly outside limits on both charts; eight
+Individuals observations strictly above/below center; six strictly increasing/decreasing
+Individuals observations. Equality interrupts runs/trends. Run/trend episodes report their
+first qualifying endpoint only; different rules may overlap. All chronological observations
+are evaluated against fixed limits. Signals carry rule/chart, one-based endpoint and inclusive
+range, direction, actual and reference values. Baseline investigation warnings require a
+signal wholly inside the baseline; a subsequent transition MR is not a baseline signal.
+
+Results show the summary, aligned Individuals/MR charts, scrollable deterministic insights
+and signal details. Baseline shading/boundaries, blue center, red dashed limits and orange
+target are distinct. Chart reference values are separate from axis ticks to avoid overlap.
+Content-sized summary and proportional chart/insight rows preserve chart space on resizing.
+Targets use inclusive ≤ or ≥ and report observed count/percentage, mean and latest attainment
+independently of signal status. No normality assumptions, capability indices, causal claims,
+AI explanations or SPC-to-simulation integration are introduced. No signals is not proof of
+stability; 20 observations is a practical minimum, not a reliability guarantee.
+
+Explicit analysis writes `SpcAnalysisV1` in the existing very-hidden config sheet; ordinary
+Excel Save is still needed for disk persistence. Normal model save/Clear Model preserve this
+block, including unreadable blocks. Unreadable SPC settings block SPC opening, not simulation.
+`SpcExporter` creates a unique new source-workbook worksheet with configuration/target/limits,
+all aligned observations and signal descriptions, and two editable native Excel charts.
+User strings are text, never formulas. The first MR stays blank. Native charts highlight
+signal endpoints (red circles) and baseline endpoints (green diamonds); the on-screen charts
+also highlight participating signal ranges and shade the baseline. Native charts do not
+reproduce that background shading. Export failure can leave a partial new report, never an
+overwritten source/report sheet.
+
 ## Licensing and distribution decisions
 
 Phase 1 intentionally uses offline licensing: a 30-day trial and RSA-signed Professional/
@@ -391,12 +455,16 @@ remain release work; generated x86 packaging does not establish live x86 support
 
 ## Verification and working constraints
 
-Current suite: **504 xUnit cases**,
+Current suite: **555 xUnit cases**,
 zero failures/skips in Debug and Release; full solution builds and x86/x64 packed-XLL
 generation passed in both configurations. Require both configurations for changes to
 execution/persistence. The Windows harness passes six existing Results cases and six
 Scenario editor/comparison cases (both analysis modes) at 100/125/150% geometry scaling.
 Three correlation-editor cases cover add/edit/delete and help/grid/footer bounds at the same scales.
+Three SPC configuration/results cases cover rule defaults, both chart paint paths, footer
+bounds and resizing at 100/125/150% geometry scaling. SPC adds 51 unit cases covering reference
+statistics, fixed baselines, signals, rejected gaps/edge cases, target independence, export
+tables and backward-compatible persistence.
 
 Run from repository root as appropriate to the change:
 
@@ -448,3 +516,9 @@ reference moves/deletions, clear/redefine, seeded replay and Export followed by 
 updates. UI verification must include actual display scaling, both charts, close/edge
 markers, constant/out-of-range cases, both calculators/directions and native control text.
 Automated checks do not establish completion of these live checks.
+
+`-- --live-spc` runs the SPC workbook service in a private Excel STA instance with a synthetic
+workbook: strict Excel errors, text/date labels, appended observations with fixed limits,
+formula/source preservation, name reuse, native charts, unique exports, text safety, tracked
+rename/insert/delete, save/reopen and owned process exit. It does not certify interactive
+ribbon clicks/range-picker operation, arbitrary customer workbooks or actual per-monitor DPI.
