@@ -14,7 +14,9 @@ public sealed class SpcConfigurationForm : Form
     private readonly ComboBox direction = new() { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly NumericUpDown start = new() { Minimum = 1, Maximum = SpcDataReader.MaximumObservations, Value = 1, Dock = DockStyle.Fill };
     private readonly NumericUpDown end = new() { Minimum = 20, Maximum = SpcDataReader.MaximumObservations, Value = 20, Dock = DockStyle.Fill };
-    private readonly CheckBox beyond = new() { Text = "Beyond limits (both charts)", Checked = true, AutoSize = true };
+    private readonly CheckBox beyond = new() { Text = "Beyond control limits (3σ)", Checked = true, AutoSize = true };
+    private readonly CheckBox twoOfThree = new() { Text = "Two of three beyond 2σ", Checked = true, AutoSize = true };
+    private readonly CheckBox fourOfFive = new() { Text = "Four of five beyond 1σ", Checked = true, AutoSize = true };
     private readonly CheckBox run = new() { Text = "Eight-point run", Checked = true, AutoSize = true };
     private readonly CheckBox trend = new() { Text = "Six-point trend", Checked = true, AutoSize = true };
     private readonly Label baselineInfo = new() { AutoSize = true, MaximumSize = new Size(650, 0) };
@@ -63,7 +65,9 @@ public sealed class SpcConfigurationForm : Form
         Row("Baseline guidance", new Label { AutoSize = true, MaximumSize = new Size(470, 0), Text = "At least 20 observations are required. This is a practical minimum, not a guarantee of reliable limits. Analyze reuses established limits; replace the baseline deliberately to recalculate." });
         Row("Business target", target); direction.Items.AddRange(["Lower is better (≤)", "Higher is better (≥)"]); Row("Target direction", direction);
         Row("Target guidance", new Label { AutoSize = true, MaximumSize = new Size(470, 0), Text = "Optional. A business target is separate from control limits. Leave blank for no target." });
-        var rules = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill }; rules.Controls.AddRange([beyond, run, trend]); Row("Signal rules", rules);
+        var rules = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        rules.Controls.AddRange([beyond, run, twoOfThree, fourOfFive]); Row("Wheeler's Four Tests", rules);
+        Row("Supplementary Rules", trend);
         Row("Validation", validation);
         var footer = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, WrapContents = true };
         var close = new Button { Text = "Close", AutoSize = true, DialogResult = DialogResult.Cancel };
@@ -86,6 +90,7 @@ public sealed class SpcConfigurationForm : Form
         end.Value = Math.Clamp(config.BaselineEnd, 20, SpcDataReader.MaximumObservations);
         target.Text = config.Target?.Value.ToString("R", CultureInfo.CurrentCulture) ?? ""; direction.SelectedIndex = config.Target?.Direction == TargetDirection.AtOrAbove ? 1 : 0;
         beyond.Checked = config.Rules.BeyondLimits; run.Checked = config.Rules.SustainedRun; trend.Checked = config.Rules.SustainedTrend;
+        twoOfThree.Checked = config.Rules.TwoOfThree; fourOfFive.Checked = config.Rules.FourOfFive;
         void BaselineDescription()
         {
             start.Enabled = mode.SelectedIndex == 2; end.Enabled = mode.SelectedIndex != 0;
@@ -105,6 +110,6 @@ public sealed class SpcConfigurationForm : Form
         }
         return new() { ProcessName = process.Text.Trim(), MeasurementUnit = unit.Text.Trim(), BaselineMode = (SpcBaselineMode)mode.SelectedIndex,
             BaselineStart = mode.SelectedIndex == 2 ? (int)start.Value : 1, BaselineEnd = (int)end.Value,
-            Target = businessTarget, Rules = new(beyond.Checked, run.Checked, trend.Checked) };
+            Target = businessTarget, Rules = new(beyond.Checked, run.Checked, trend.Checked, twoOfThree.Checked, fourOfFive.Checked) };
     }
 }

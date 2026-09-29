@@ -14,6 +14,11 @@
     <None Remove="Icons\model_manager.png" />
     <None Remove="Icons\reload_model.png" />
     <None Remove="Icons\run_simulation.png" />
+    <None Remove="Icons\Correlations.png" />
+    <None Remove="Icons\Clear Cell Defition.png" />
+    <None Remove="Icons\Scenario Analysis.png" />
+    <None Remove="Icons\Simulation Settings.png" />
+    <None Remove="Icons\SPC Analysis.png" />
     <None Remove="Licensing\public-key.pem" />
   </ItemGroup>
 
@@ -24,6 +29,11 @@
     <EmbeddedResource Include="Icons\model_manager.png" />
     <EmbeddedResource Include="Icons\reload_model.png" />
     <EmbeddedResource Include="Icons\run_simulation.png" />
+    <EmbeddedResource Include="Icons\Correlations.png" LogicalName="MonteCarlo.Excel.Icons.Correlations.png" />
+    <EmbeddedResource Include="Icons\Clear Cell Defition.png" LogicalName="MonteCarlo.Excel.Icons.Clear Cell Defition.png" />
+    <EmbeddedResource Include="Icons\Scenario Analysis.png" LogicalName="MonteCarlo.Excel.Icons.Scenario Analysis.png" />
+    <EmbeddedResource Include="Icons\Simulation Settings.png" LogicalName="MonteCarlo.Excel.Icons.Simulation Settings.png" />
+    <EmbeddedResource Include="Icons\SPC Analysis.png" LogicalName="MonteCarlo.Excel.Icons.SPC Analysis.png" />
     <EmbeddedResource Include="Licensing\public-key.pem" />
   </ItemGroup>
 

@@ -58,7 +58,7 @@ public class XmRCalculatorTests
     {
         double[] values = Enumerable.Range(1, 20).Select(i => (double)i).ToArray(); var b = XmRCalculator.EstablishBaseline(values, new());
         var result = XmRCalculator.Analyze(values, new(), b); Assert.True(result.BaselineHasSignals);
-        Assert.Contains(result.Signals, s => s.RuleId == 3 && s.ObservationIndex == 6);
+        Assert.Contains(result.Signals, s => s.RuleId == 5 && s.ObservationIndex == 6);
         Assert.Contains(result.Insights(), s => s.Contains("baseline requires investigation"));
     }
     [Fact] public void ConstantBaselineIsRejected() => Assert.Contains("zero", Assert.Throws<ArgumentException>(() => XmRCalculator.EstablishBaseline(Enumerable.Repeat(42d, 20).ToArray(), new())).Message);

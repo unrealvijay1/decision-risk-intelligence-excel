@@ -33,7 +33,7 @@ namespace MonteCarlo.Excel
 
         <group id='ModelSetupGroup'
                label='Model Setup'>
-          <button id='CorrelationsButton' label='Correlations...' size='normal' onAction='OnCorrelations'/>
+
 
           <button
               id='DefineAssumptionButton'
@@ -53,6 +53,8 @@ namespace MonteCarlo.Excel
               getImage='GetRibbonImage'
               onAction='OnDefineForecast'/>
 
+          <button id='CorrelationsButton' label='Correlations' size='large' getImage='GetRibbonImage' onAction='OnCorrelations'/>
+
           <button
               id='ModelManagerButton'
               label='Model Manager'
@@ -67,7 +69,8 @@ namespace MonteCarlo.Excel
               label='Clear Cell Definition'
               screentip='Remove the selected cell definition'
               supertip='Remove the Monte Carlo definition from one selected cell and restore its original fill. The cell value or formula is preserved.'
-              size='normal'
+              size='large'
+              getImage='GetRibbonImage'
               onAction='OnClearCellDefinition'/>
 
         </group>
@@ -84,15 +87,15 @@ namespace MonteCarlo.Excel
               size='large'
               getImage='GetRibbonImage'
               onAction='OnRunSimulation'/>
-          <button id='SimulationSettingsButton' label='Simulation Settings' size='normal' onAction='OnSimulationSettings'/>
-          <button id='ScenarioAnalysisButton' label='Scenario Analysis' size='normal' onAction='OnScenarioAnalysis'/>
+          <button id='ScenarioAnalysisButton' label='Scenario Analysis' size='large' getImage='GetRibbonImage' onAction='OnScenarioAnalysis'/>
+          <button id='SimulationSettingsButton' label='Simulation Settings' size='large' getImage='GetRibbonImage' onAction='OnSimulationSettings'/>
 
           <button
               id='ReloadModelButton'
               label='Reload Model'
               screentip='Reload saved model'
               supertip='Reload Monte Carlo assumptions and forecasts stored in the current workbook.'
-              size='normal'
+              size='large'
               getImage='GetRibbonImage'
               onAction='OnReloadModel'/>
 
@@ -100,7 +103,7 @@ namespace MonteCarlo.Excel
 
 
         <group id='ProcessAnalysisGroup' label='Process Analysis'>
-          <button id='SpcAnalysisButton' label='SPC Analysis' size='large' imageMso='ChartLine'
+          <button id='SpcAnalysisButton' label='SPC Analysis' size='large' getImage='GetRibbonImage'
                   screentip='Analyze process behaviour with XmR charts' onAction='OnSpcAnalysis'/>
         </group>
 
@@ -112,7 +115,7 @@ namespace MonteCarlo.Excel
               label='Clear Model'
               screentip='Clear Monte Carlo model'
               supertip='Delete all saved Monte Carlo assumptions and forecasts from the current workbook.'
-              size='normal'
+              size='large'
               getImage='GetRibbonImage'
               onAction='OnClearModel'/>
 
@@ -156,6 +159,12 @@ namespace MonteCarlo.Excel
 
                     "DefineForecastButton" =>
                         "MonteCarlo.Excel.Icons.forecast.png",
+
+                    "CorrelationsButton" => "MonteCarlo.Excel.Icons.Correlations.png",
+                    "ClearCellDefinitionButton" => "MonteCarlo.Excel.Icons.Clear Cell Defition.png",
+                    "ScenarioAnalysisButton" => "MonteCarlo.Excel.Icons.Scenario Analysis.png",
+                    "SimulationSettingsButton" => "MonteCarlo.Excel.Icons.Simulation Settings.png",
+                    "SpcAnalysisButton" => "MonteCarlo.Excel.Icons.SPC Analysis.png",
 
                     "ModelManagerButton" =>
                         "MonteCarlo.Excel.Icons.model_manager.png",
@@ -201,9 +210,25 @@ namespace MonteCarlo.Excel
                     stream);
 
 
-            return
-                new Bitmap(
-                    image);
+            // Fit supplied artwork into a native large-control canvas, without upscaling.
+            var bitmap = new Bitmap(32, 32, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using var graphics = Graphics.FromImage(bitmap);
+            graphics.Clear(Color.Transparent);
+            double scale = Math.Min(1d, Math.Min(32d / image.Width, 32d / image.Height));
+            int width = Math.Max(1, (int)Math.Round(image.Width * scale));
+            int height = Math.Max(1, (int)Math.Round(image.Height * scale));
+            if (scale == 1d)
+                graphics.DrawImageUnscaled(image, (32 - width) / 2, (32 - height) / 2);
+            else
+            {
+                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                using var attributes = new System.Drawing.Imaging.ImageAttributes();
+                attributes.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
+                graphics.DrawImage(image, new Rectangle((32 - width) / 2, (32 - height) / 2, width, height),
+                    0, 0, image.Width, image.Height, GraphicsUnit.Pixel, attributes);
+            }
+            return bitmap;
         }
 
 

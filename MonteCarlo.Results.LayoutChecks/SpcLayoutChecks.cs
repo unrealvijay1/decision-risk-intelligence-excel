@@ -11,13 +11,37 @@ internal static class SpcLayoutChecks
             Prepare(editor, scale); CheckButtons(editor);
             Preview(editor, $"spc-configuration-{scale}.png");
             if (editor.ReadConfiguration().Rules != new SpcRules()) throw new Exception("SPC rule defaults changed.");
-            var values = Enumerable.Range(0, 50).Select(i => 10d + (i % 2 == 0 ? -1 : 1)).ToArray(); values[30] = 35;
+            var checks = Descendants(editor).OfType<CheckBox>().ToArray();
+            string[] ruleLabels = ["Beyond control limits (3σ)", "Eight-point run", "Two of three beyond 2σ", "Four of five beyond 1σ", "Six-point trend"];
+            if (!checks.Select(c => c.Text).Order().SequenceEqual(ruleLabels.Order())) throw new Exception("SPC rule controls are missing.");
+            foreach (var check in checks)
+            {
+                if (check.Width < check.PreferredSize.Width || check.Height < check.PreferredSize.Height || check.Right > check.Parent!.ClientSize.Width)
+                    throw new Exception($"SPC rule clipped at {scale}: {check.Text}");
+                foreach (var other in checks.Where(c => c != check && c.Parent == check.Parent))
+                    if (check.Bounds.IntersectsWith(other.Bounds)) throw new Exception("SPC rule controls overlap.");
+                var scroll = Descendants(editor).OfType<Panel>().Single(p => p.AutoScroll);
+                scroll.ScrollControlIntoView(check);
+                var visible = scroll.RectangleToClient(check.RectangleToScreen(check.ClientRectangle));
+                if (!scroll.ClientRectangle.Contains(visible)) throw new Exception($"SPC rule cannot be scrolled into view: {check.Text}");
+                check.Checked = false;
+            }
+            Preview(editor, $"spc-configuration-rules-{scale}.png");
+            if (editor.ReadConfiguration().Rules != new SpcRules(false, false, false, false, false)) throw new Exception("SPC rule selections were not read.");
+            var values = Enumerable.Range(0, 50).Select(i => 10d + (i % 2 == 0 ? -1 : 1)).ToArray();
+            for (int i = 30; i < 38; i++) values[i] = 35;
             var ranges = values.Select((v, i) => i == 0 ? (double?)null : Math.Abs(v - values[i - 1])).ToArray();
             var baseline = new SpcBaseline(1, 20, 10, 2, 4.68, 15.32, 6.536);
             var result = new SpcResult(new() { ProcessName = "Long process name for layout validation", Target = new(14, TargetDirection.AtOrBelow), MeasurementUnit = "days" },
                 values, Enumerable.Range(1, 50).Select(i => new DateTime(2026, 1, 1).AddDays(i).ToString("dd MMM yyyy")).ToArray(), ranges, baseline,
                 SpcSignalDetector.Detect(values, ranges, baseline, new()));
             using var results = new SpcResultsForm(result, () => { }); Prepare(results, scale); CheckButtons(results);
+            if (!result.Signals.Any(s => s.RuleId == 3) || !result.Signals.Any(s => s.RuleId == 4)) throw new Exception("SPC multi-rule fixture failed.");
+            var grid = Descendants(results).OfType<DataGridView>().Single();
+            ((TabControl)grid.Parent!.Parent!).SelectedTab = (TabPage)grid.Parent;
+            results.PerformLayout(); grid.PerformLayout();
+            if (!grid.Columns.Contains("QualifyingObservations") || !grid.Columns.Contains("WindowValues") || grid.Rows.Count != result.Signals.Count)
+                throw new Exception("SPC signal details are incomplete.");
             Preview(results, $"spc-results-{scale}.png");
             foreach (var chart in Descendants(results).OfType<SpcChartPanel>())
             {

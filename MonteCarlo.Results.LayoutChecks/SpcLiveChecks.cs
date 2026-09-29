@@ -38,7 +38,7 @@ internal static class SpcLiveChecks
             Own(app); app.Visible = false; app.DisplayAlerts = false; app.EnableEvents = false; app.AutomationSecurity = 3;
             book = Own(app.Workbooks.Add()); ExcelDnaUtil.Application = app;
             dynamic dataSheet = Own(book.Worksheets[1]); dataSheet.Name = "Data";
-            var raw = new object[40, 1]; for (int i = 0; i < 40; i++) raw[i, 0] = i == 30 ? 35d : 10d + (i % 2 == 0 ? -1 : 1);
+            var raw = new object[40, 1]; for (int i = 0; i < 40; i++) raw[i, 0] = i >= 30 && i < 35 ? 35d : 10d + (i % 2 == 0 ? -1 : 1);
             dynamic data = Own(dataSheet.Range["A1:A40"]); data.Value2 = raw;
             dynamic labels = Own(dataSheet.Range["B1:B40"]); labels.NumberFormat = "@";
             var labelValues = new object[40, 1]; for (int i = 0; i < 40; i++) labelValues[i, 0] = i == 0 ? "=2+2" : "Observation " + (i + 1);
@@ -60,6 +60,7 @@ internal static class SpcLiveChecks
             dataSheet.Range["A2"].Formula = "=11";
             var outcome = SpcAnalysisService.Analyze((object)book, (object)data, (object)labels, config, false, initial.Saved);
             var result = outcome.Result; var saved = outcome.Saved;
+            if (!result.Signals.Any(s => s.RuleId == 3) || !result.Signals.Any(s => s.RuleId == 4)) throw new Exception("Live zone signals missing.");
             if (result.Baseline != initial.Result.Baseline || result.Observations.Count != 40 || (string)dataSheet.Range["A2"].Formula != "=11")
                 throw new Exception("Appended observations changed fixed limits or source formulas.");
             int nameCount = (int)book.Names.Count;
@@ -78,6 +79,10 @@ internal static class SpcLiveChecks
                 throw new Exception("Native charts or blank first MR failed.");
             if ((bool)report.Cells[SpcExporter.HeaderRow + 1, 2].HasFormula || (bool)report.Cells[1, 2].HasFormula)
                 throw new Exception("User text was interpreted as a formula.");
+            string ids = (string)report.Cells[SpcExporter.HeaderRow + 31, 13].Value2;
+            if (!ids.Contains("Rule 3") || !ids.Contains("Rule 4") ||
+                (double)report.Cells[SpcExporter.HeaderRow + 31, 22].Value2 != saved.Baseline.UpperTwoSigma)
+                throw new Exception("Live export lost zone thresholds or multiple rule identifiers.");
             if ((double)dataSheet.Range["A32"].Value2 != 35) throw new Exception("Export modified source data.");
             SpcExporter.Export((object)book, result, "Same source");
             if ((string)app.ActiveSheet.Name == (string)report.Name) throw new Exception("Export overwrote a worksheet.");

@@ -63,7 +63,7 @@ public sealed class SpcChartPanel : Panel
         using var boundary = new Pen(Color.SlateGray) { DashStyle = DashStyle.Dot };
         foreach (int index in new[] { b.Start, b.End }) g.DrawLine(boundary, X(index), plot.Top, X(index), plot.Bottom);
         var signaled = Result.Signals.Where(s => s.Chart == Chart).SelectMany(s => Chart == SpcChart.MovingRange
-            ? new[] { s.ObservationIndex } : Enumerable.Range(s.StartIndex, s.EndIndex - s.StartIndex + 1)).ToHashSet();
+            ? new[] { s.ObservationIndex } : s.QualifyingIndices).ToHashSet();
         using var dataPen = new Pen(Color.FromArgb(35, 80, 115), 1.4f);
         PointF? previous = null;
         for (int i = individual ? 0 : 1; i < Result.Observations.Count; i++)
@@ -72,7 +72,12 @@ public sealed class SpcChartPanel : Panel
             var point = new PointF(X(i + 1), Y(value));
             if (previous.HasValue) g.DrawLine(dataPen, previous.Value, point);
             if (signaled.Contains(i + 1) || Result.Observations.Count <= 300)
-                g.FillEllipse(signaled.Contains(i + 1) ? Brushes.Firebrick : Brushes.SteelBlue, point.X - 3, point.Y - 3, 6, 6);
+                g.FillEllipse(Brushes.SteelBlue, point.X - 3, point.Y - 3, 6, 6);
+            if (signaled.Contains(i + 1))
+            {
+                using var signalPen = new Pen(Color.Firebrick, 1.5f);
+                g.DrawEllipse(signalPen, point.X - 5, point.Y - 5, 10, 10);
+            }
             previous = point;
         }
         int step = Math.Max(1, (int)Math.Ceiling(Result.Observations.Count / Math.Max(2, plot.Width / (110 * scale))));

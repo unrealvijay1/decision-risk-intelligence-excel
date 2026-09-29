@@ -1,6 +1,6 @@
 # Monte Carlo for Excel — Project Context
 
-Last reconciled with source and tests: **2026-09-28**.
+Last reconciled with source and tests: **2026-09-29**.
 
 This is the persistent project handoff and source of truth for future Codex sessions.
 Read it before implementation. Verify relevant source before changing behavior; reconcile
@@ -34,9 +34,18 @@ Ribbon run opens a fresh modal `ResultsForm`; chart/calculator actions do not re
 
 ## Implemented model workflows
 
-- Ribbon groups: Model Setup (Define Assumption, Define Forecast, Model Manager, Correlations, Clear
-  Cell Definition); Simulation (Run Simulation, Simulation Settings, Scenario Analysis, Reload Model);
+- Ribbon groups: Model Setup (Define Assumption, Define Forecast, Correlations, Model Manager, Clear
+  Cell Definition); Simulation (Run Simulation, Scenario Analysis, Simulation Settings, Reload Model);
   Process Analysis (SPC Analysis); Maintenance (Clear Model); Product (License). Export Report is in Results.
+- All 12 ribbon commands are native large buttons. Excel owns label wrapping, alignment and
+  narrow-window group collapse; there are no fixed-width spacers or custom panels. All existing
+  command IDs, callbacks and implementations are preserved. License retains `imageMso=FileProperties`.
+- Eleven supplied PNGs in `MonteCarlo.Excel/MonteCarlo.Excel/Icons/` are embedded in the Excel
+  assembly. `GetRibbonImage` resolves exact manifest names, clones 32×32 artwork, and fits wider
+  images proportionally into a transparent 32×32 canvas without upscaling. New filenames with
+  spaces use explicit `LogicalName` metadata. The supplied clear-cell filename is actually
+  `Clear Cell Defition.png` (sic); do not substitute the spelling from the request. Packed XLLs
+  carry these resources inside the compressed Excel assembly and require no external PNG folder.
 - Six distributions: Normal (mean, SD), Lognormal (log mean, log SD), Uniform (min, max),
   Triangular and PERT (min, most likely, max), Beta (min, max, alpha, beta). Preserve
   parameter order across UI, sampling and persistence.
@@ -394,13 +403,25 @@ coordinate fallback exists. Unchanged names are reused; superseded names can rem
 existing cell tracking. Re-select the data/label ranges to include appended observations
 outside their tracked range. Limits are snapshots; historical source values are not persisted.
 
-Rules are individually configurable: strictly outside limits on both charts; eight
-Individuals observations strictly above/below center; six strictly increasing/decreasing
-Individuals observations. Equality interrupts runs/trends. Run/trend episodes report their
-first qualifying endpoint only; different rules may overlap. All chronological observations
-are evaluated against fixed limits. Signals carry rule/chart, one-based endpoint and inclusive
-range, direction, actual and reference values. Baseline investigation warnings require a
-signal wholly inside the baseline; a subsequent transition MR is not a baseline signal.
+**Wheeler's Four Tests** are independently selectable: (1) strictly outside control limits
+on both charts, (2) eight Individuals observations strictly above/below center, (3) at least
+two of three strictly beyond the same 2σ threshold, and (4) at least four of five strictly
+beyond the same 1σ threshold. **Supplementary Rules** contains the six-point strictly
+increasing/decreasing trend (rule ID 5; previously 3). All five default to enabled. Sigma is
+saved baseline MR̄ / **1.128**; zone thresholds are saved mean ± sigma and ± 2 × sigma.
+These derived properties are not separately persisted and never replace the 2.66/3.268 limits.
+Zone tests apply only to Individuals; the remaining window observation can be anywhere.
+Equality does not qualify. Missing/non-finite data remain rejected before detection.
+
+All observations are evaluated chronologically. Run/trend episodes report their first
+qualifying endpoint only. Zone episodes report the first qualifying window per rule and
+direction; consecutive qualifying windows are suppressed until a nonqualifying window
+resets that episode. Different rules never suppress each other. Signals retain one-based
+window bounds, endpoint, direction, threshold, qualifying indices and actual window values.
+Highlights/export membership use qualifying observations, which need not include the window
+endpoint. Baseline investigation requires a signal wholly inside the baseline; a subsequent
+transition MR is not a baseline signal. Insights describe rule/direction and multiple signals
+without inferring operational causes.
 
 Results show the summary, aligned Individuals/MR charts, scrollable deterministic insights
 and signal details. Baseline shading/boundaries, blue center, red dashed limits and orange
@@ -414,11 +435,16 @@ stability; 20 observations is a practical minimum, not a reliability guarantee.
 Explicit analysis writes `SpcAnalysisV1` in the existing very-hidden config sheet; ordinary
 Excel Save is still needed for disk persistence. Normal model save/Clear Model preserve this
 block, including unreadable blocks. Unreadable SPC settings block SPC opening, not simulation.
+The additive `TwoOfThree`/`FourOfFive` rule fields retain the `SpcAnalysisV1` envelope;
+missing fields default to true while all three existing selections and saved limits survive.
 `SpcExporter` creates a unique new source-workbook worksheet with configuration/target/limits,
 all aligned observations and signal descriptions, and two editable native Excel charts.
 User strings are text, never formulas. The first MR stays blank. Native charts highlight
-signal endpoints (red circles) and baseline endpoints (green diamonds); the on-screen charts
-also highlight participating signal ranges and shade the baseline. Native charts do not
+qualifying signal observations (red rings) and baseline endpoints (green diamonds); the
+on-screen charts keep blue data points visible inside red rings and shade the baseline.
+The scrollable details grid retains every rule, qualifying indices, threshold and actual
+window values; exports retain all applicable identifiers/descriptions per participating
+observation and include four zone columns (S:V). Native charts do not
 reproduce that background shading. Export failure can leave a partial new report, never an
 overwritten source/report sheet.
 
@@ -455,16 +481,25 @@ remain release work; generated x86 packaging does not establish live x86 support
 
 ## Verification and working constraints
 
-Current suite: **555 xUnit cases**,
+Current suite: **582 xUnit cases**,
 zero failures/skips in Debug and Release; full solution builds and x86/x64 packed-XLL
 generation passed in both configurations. Require both configurations for changes to
 execution/persistence. The Windows harness passes six existing Results cases and six
 Scenario editor/comparison cases (both analysis modes) at 100/125/150% geometry scaling.
 Three correlation-editor cases cover add/edit/delete and help/grid/footer bounds at the same scales.
-Three SPC configuration/results cases cover rule defaults, both chart paint paths, footer
-bounds and resizing at 100/125/150% geometry scaling. SPC adds 51 unit cases covering reference
-statistics, fixed baselines, signals, rejected gaps/edge cases, target independence, export
-tables and backward-compatible persistence.
+Three SPC configuration/results cases cover five rule defaults/selections, scroll access,
+control overlap, multi-rule details, both chart paint paths, footer bounds and resizing at
+100/125/150% geometry scaling. SPC has 78 unit cases covering reference statistics, fixed
+baselines/zones, strict same-side rules, episode deduplication, rejected gaps/edge cases,
+target independence, multi-rule export tables and legacy/five-rule persistence. Debug and
+Release layouts and rendered previews were checked; private Excel SPC and Scenario checks
+passed, including owned process exit. Current ribbon packages are in `artifacts/ribbon-debug/`
+and `artifacts/ribbon-release/`. Both configurations pass all 582 cases and full builds.
+All four XLLs were extracted and verified: correct x86/x64 PE headers, all 11 PNG hashes,
+transparent 32×32 image callback results, five ordered groups and unchanged 12 callback mappings.
+A private Excel instance accepted the Release x64 XLL. Native ribbon interaction, narrow-window
+collapse and actual 100/125/150% Windows DPI rendering remain manual checks; no approved mockup
+image was supplied, so the implementation follows the requested textual layout.
 
 Run from repository root as appropriate to the change:
 
@@ -518,7 +553,8 @@ markers, constant/out-of-range cases, both calculators/directions and native con
 Automated checks do not establish completion of these live checks.
 
 `-- --live-spc` runs the SPC workbook service in a private Excel STA instance with a synthetic
-workbook: strict Excel errors, text/date labels, appended observations with fixed limits,
+workbook: strict Excel errors, text/date labels, appended observations with fixed limits/zones,
 formula/source preservation, name reuse, native charts, unique exports, text safety, tracked
-rename/insert/delete, save/reopen and owned process exit. It does not certify interactive
+rename/insert/delete, zone signals/multiple identifiers and thresholds in export, save/reopen
+and owned process exit. It does not certify interactive
 ribbon clicks/range-picker operation, arbitrary customer workbooks or actual per-monitor DPI.

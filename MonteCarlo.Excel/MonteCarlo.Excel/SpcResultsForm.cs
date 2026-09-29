@@ -33,8 +33,16 @@ public sealed class SpcResultsForm : Form
         var insights = new TabPage("Process Insights");
         insights.Controls.Add(new TextBox { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Text = string.Join(Environment.NewLine, result.Insights()) });
         var signals = new TabPage("Signal Details");
-        var grid = new DataGridView { Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells,
-            DataSource = result.Signals.ToArray() };
+        var grid = new DataGridView { Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells,
+            DataSource = result.Signals.Select(s => new { s.RuleId, s.RuleName, s.Chart, s.Direction, s.StartIndex, s.EndIndex,
+                s.QualifyingObservations, Threshold = s.ReferenceValue, WindowValues = s.Values, s.Description }).ToArray() };
+        grid.DataBindingComplete += (_, _) =>
+        {
+            foreach (var (name, caption) in new[] { ("RuleId", "Rule"), ("RuleName", "Rule name"), ("StartIndex", "Window start"),
+                ("EndIndex", "Window end"), ("QualifyingObservations", "Qualifying observations"), ("WindowValues", "Actual values (window order)") })
+                if (grid.Columns[name] is { } column) column.HeaderText = caption;
+            grid.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
+        };
         signals.Controls.Add(grid); tabs.TabPages.Add(insights); tabs.TabPages.Add(signals); root.Controls.Add(tabs, 0, 3);
         var footer = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
         var close = new Button { Text = "Close", AutoSize = true, DialogResult = DialogResult.Cancel };
