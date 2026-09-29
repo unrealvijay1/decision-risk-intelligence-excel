@@ -9,6 +9,8 @@ public sealed class DistributionPreviewResult
     public double MinimumX { get; init; }
     public double MaximumX { get; init; }
     public IReadOnlyList<DensityPoint> Points { get; init; } = Array.Empty<DensityPoint>();
+    public bool IsDiscrete { get; init; }
+    public string? RangeNote { get; init; }
 }
 
 /// <summary>Deterministic analytical densities for assumption previews. No Excel state is used.</summary>
@@ -24,10 +26,15 @@ public static class DistributionPreview
     };
 
     public static DistributionPreviewResult Generate(
-        DistributionKind kind, double p1, double p2, double p3 = 0, double p4 = 0)
+        DistributionKind kind, double p1, double p2, double p3 = 0, double p4 = 0, DiscreteTable? table = null)
     {
-        string? error = Validate(kind, p1, p2, p3, p4);
+        string? error = Validate(kind, p1, p2, p3, p4, table);
         if (error != null) return Invalid(error);
+        if (kind >= DistributionKind.Exponential)
+        {
+            try { return GenerateExtended(kind, p1, p2, p3, p4, table); }
+            catch (ArgumentException ex) { return Invalid(ex.Message); }
+        }
 
         double min;
         double max;
@@ -81,8 +88,9 @@ public static class DistributionPreview
     }
 
     public static string? Validate(DistributionKind kind, double p1, double p2,
-        double p3 = 0, double p4 = 0)
+        double p3 = 0, double p4 = 0, DiscreteTable? table = null)
     {
+        if (kind >= DistributionKind.Exponential) return ExtendedDistributions.Validate(kind, p1, p2, p3, p4, table);
         if (!double.IsFinite(p1) || !double.IsFinite(p2) ||
             !double.IsFinite(p3) || !double.IsFinite(p4))
             return "Enter finite numeric parameters.";
@@ -108,6 +116,43 @@ public static class DistributionPreview
 
     private static DistributionPreviewResult Invalid(string message) =>
         new() { ValidationMessage = message };
+
+    private static DistributionPreviewResult GenerateExtended(DistributionKind kind, double a, double b, double c, double d, DiscreteTable? table)
+    {
+        double Q(double p) => ExtendedDistributions.Quantile(kind, p, a, b, c, d, table);
+        double P(double x) => ExtendedDistributions.Probability(kind, x, a, b, c, d, table);
+        bool discrete = DistributionCatalog.IsDiscrete(kind);
+        double min = kind == DistributionKind.Discrete ? table!.Outcomes[0].Outcome : Q(.001);
+        double max = kind == DistributionKind.Discrete ? table!.Outcomes[^1].Outcome : Q(.999);
+        var points = new List<DensityPoint>();
+        string? note = kind is DistributionKind.Bernoulli or DistributionKind.Discrete ? null : "Central 99.8% shown; tails may extend beyond the plot.";
+        if (kind == DistributionKind.Discrete) points.AddRange(table!.Outcomes.Select(r => new DensityPoint(r.Outcome, r.Probability)));
+        else if (discrete)
+        {
+            if (max - min > 2000)
+            {
+                // Do not turn a large-support PMF into a continuous density or aggregate unlabeled mass.
+                double center = Q(.5); min = Math.Max(min, center - 1000); max = Math.Min(max, center + 1000);
+                note = "Central 2,001 outcomes; remaining mass omitted.";
+            }
+            for (double x = min; x <= max; x++) points.Add(new(x, P(x)));
+        }
+        else
+        {
+            for (int i = 0; i < PointCount; i++)
+            {
+                double x = (1 - (double)i / (PointCount - 1)) * min + (double)i / (PointCount - 1) * max;
+                points.Add(new(x, P(x)));
+            }
+        }
+        if (discrete)
+        {
+            double padding = Math.Max(.5, (max - min) * .03); min -= padding; max += padding;
+        }
+        if (!double.IsFinite(min) || !double.IsFinite(max) || !double.IsFinite(max - min) || max <= min ||
+            points.Any(p => !double.IsFinite(p.Density) || p.Density < 0)) return Invalid("Parameters exceed the finite plotting range. Rescale the units.");
+        return new() { MinimumX = min, MaximumX = max, Points = points.AsReadOnly(), IsDiscrete = discrete, RangeNote = note };
+    }
 
     private static double Density(DistributionKind kind, double x,
         double p1, double p2, double p3, double p4)

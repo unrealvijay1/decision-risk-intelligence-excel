@@ -45,7 +45,7 @@ public static class ScenarioSimulationService
     {
         Name = a.Name, CellLink = a.CellLink, SheetName = a.SheetName, CellAddress = a.CellAddress,
         Distribution = a.Distribution, Parameter1 = a.Parameter1, Parameter2 = a.Parameter2,
-        Parameter3 = a.Parameter3, Parameter4 = a.Parameter4
+        Parameter3 = a.Parameter3, Parameter4 = a.Parameter4, ProbabilityTable = a.ProbabilityTable
     };
     public static ForecastDefinition Clone(ForecastDefinition f) => new()
     { Name = f.Name, CellLink = f.CellLink, SheetName = f.SheetName, CellAddress = f.CellAddress, TargetSettings = f.TargetSettings };
@@ -61,7 +61,7 @@ public static class ScenarioSimulationService
             try
             {
                 ScenarioTransformation.Apply(new((DistributionKind)assumption.Distribution, assumption.Parameter1,
-                    assumption.Parameter2, assumption.Parameter3, assumption.Parameter4), adjustment.Value);
+                    assumption.Parameter2, assumption.Parameter3, assumption.Parameter4, ProbabilityTable: assumption.ProbabilityTable), adjustment.Value);
             }
             catch (ArgumentException ex) { throw new ArgumentException($"{scenario.Name} / {assumption.Name}: {ex.Message}", ex); }
         }

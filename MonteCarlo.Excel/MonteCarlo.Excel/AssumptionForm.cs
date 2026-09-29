@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Linq;
+using MonteCarlo.Core;
 
 namespace MonteCarlo.Excel
 {
@@ -24,6 +25,11 @@ namespace MonteCarlo.Excel
         private readonly TextBox txtParameter4;
         private readonly Panel previewPanel;
         private MonteCarlo.Core.DistributionPreviewResult? preview;
+        private readonly Panel tablePanel;
+        private readonly DataGridView probabilityGrid;
+        private readonly Label probabilityTotal;
+        public DiscreteTable? ProbabilityTable { get; private set; }
+        private DistributionKind SelectedKind => Enum.Parse<DistributionKind>((cmbDistribution.SelectedItem?.ToString() ?? "PERT").Replace(" ", ""), true);
 
 
         public string AssumptionName { get; private set; } = "";
@@ -187,6 +193,7 @@ namespace MonteCarlo.Excel
                 "Beta");
 
 
+            cmbDistribution.Items.AddRange(new object[] { "Exponential", "Poisson", "Binomial", "Discrete", "Weibull", "Gamma", "Bernoulli", "Truncated Normal" });
             Controls.Add(
                 lblDistribution);
 
@@ -381,6 +388,8 @@ namespace MonteCarlo.Excel
             Controls.Add(
                 btnFitFromData);
 
+            var fittingHelp = new Label { Text = "Fitting: Normal, Lognormal, Uniform, Triangular only.", Left = 20, Top = 360, AutoSize = true };
+            Controls.Add(fittingHelp);
             Label previewHeading = new Label
             {
                 Text = "Distribution Preview",
@@ -446,10 +455,34 @@ namespace MonteCarlo.Excel
                 };
 
 
+            tablePanel = new Panel { Left = 20, Top = 120, Width = ClientSize.Width - 40, Height = 192,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, Visible = false };
+            probabilityGrid = new DataGridView { Dock = DockStyle.Fill, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
+                RowHeadersVisible = false, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill, Name = "ProbabilityTable" };
+            probabilityGrid.Columns.Add("Outcome", "Outcome"); probabilityGrid.Columns.Add("Probability", "Probability");
+            probabilityGrid.Rows.Add(10d, .2); probabilityGrid.Rows.Add(20d, .5); probabilityGrid.Rows.Add(30d, .3);
+            var tableFooter = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 36, WrapContents = false };
+            var addRow = new Button { Text = "Add Row", AutoSize = true };
+            var deleteRow = new Button { Text = "Delete Row", AutoSize = true };
+            probabilityTotal = new Label { Text = "Total: 1", AutoSize = true, Margin = new Padding(4, 8, 0, 0) };
+            tableFooter.Controls.AddRange([addRow, deleteRow, probabilityTotal]);
+            tablePanel.Controls.Add(probabilityGrid); tablePanel.Controls.Add(tableFooter); Controls.Add(tablePanel);
+            addRow.Click += (_, _) => { if (probabilityGrid.Rows.Count < 100) probabilityGrid.Rows.Add(); UpdatePreview(); };
+            deleteRow.Click += (_, _) => { if (probabilityGrid.CurrentRow is { } row) probabilityGrid.Rows.Remove(row); UpdatePreview(); };
+            probabilityGrid.CellValueChanged += (_, _) => UpdatePreview();
+            probabilityGrid.RowsRemoved += (_, _) => UpdatePreview();
+            probabilityGrid.DataError += (_, e) => { e.ThrowException = false; };
+
             cmbDistribution.SelectedIndexChanged +=
                 (_, _) =>
                 {
                     UpdateParameterLabels();
+                    if (SelectedKind >= DistributionKind.Exponential)
+                    {
+                        var defaults = DistributionCatalog.Defaults(SelectedKind);
+                        TextBox[] fields = [txtParameter1, txtParameter2, txtParameter3, txtParameter4];
+                        for (int i = 0; i < 4; i++) fields[i].Text = defaults[i].ToString(CultureInfo.CurrentCulture);
+                    }
                     UpdatePreview();
                 };
 
@@ -513,52 +546,57 @@ namespace MonteCarlo.Excel
         }
 
 
-        private void UpdatePreview()
+        protected override void OnLayout(LayoutEventArgs e)
         {
-            if (previewPanel == null) return;
-
-            string selected = cmbDistribution.SelectedItem?.ToString() ?? "PERT";
-            int count = selected == "Beta" ? 4 :
-                selected is "PERT" or "Triangular" ? 3 : 2;
-            TextBox[] fields = { txtParameter1, txtParameter2, txtParameter3, txtParameter4 };
-            double[] values = new double[4];
-            for (int i = 0; i < count; i++)
-            {
-                if (!double.TryParse(fields[i].Text, NumberStyles.Float |
-                    NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out values[i]))
-                {
-                    preview = new MonteCarlo.Core.DistributionPreviewResult
-                    {
-                        ValidationMessage = $"Enter a valid {ParameterName(selected, i)}."
-                    };
-                    previewPanel.Invalidate();
-                    return;
-                }
-            }
-
-            MonteCarlo.Core.DistributionKind kind = selected switch
-            {
-                "Normal" => MonteCarlo.Core.DistributionKind.Normal,
-                "Triangular" => MonteCarlo.Core.DistributionKind.Triangular,
-                "Uniform" => MonteCarlo.Core.DistributionKind.Uniform,
-                "Lognormal" => MonteCarlo.Core.DistributionKind.Lognormal,
-                "Beta" => MonteCarlo.Core.DistributionKind.Beta,
-                _ => MonteCarlo.Core.DistributionKind.Pert
-            };
-            preview = MonteCarlo.Core.DistributionPreview.Generate(
-                kind, values[0], values[1], values[2], values[3]);
-            previewPanel.Invalidate();
+            base.OnLayout(e);
+            // Windows can constrain the scaled form to the working area. Keep the footer
+            // and preview inside the actual client height after that constraint is applied.
+            if (previewPanel == null || AcceptButton is not Button ok || CancelButton is not Button cancel) return;
+            float scale = previewPanel.Top / 400f;
+            ok.Top = cancel.Top = ClientSize.Height - (int)Math.Round(60 * scale);
+            previewPanel.Height = Math.Max(40, ok.Top - (int)Math.Round(25 * scale) - previewPanel.Top);
         }
 
-        private static string ParameterName(string distribution, int index) =>
-            distribution switch
+        private double[] ReadParameters()
+        {
+            var kind = SelectedKind;
+            string[] names = DistributionCatalog.Parameters(kind);
+            TextBox[] fields = [txtParameter1, txtParameter2, txtParameter3, txtParameter4];
+            double[] values = new double[4];
+            for (int i = 0; i < names.Length; i++)
+                if (!double.TryParse(fields[i].Text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out values[i]))
+                    throw new ArgumentException($"Enter a valid {names[i]}.");
+            return values;
+        }
+        private DiscreteTable ReadTable()
+        {
+            var rows = new System.Collections.Generic.List<DiscreteOutcome>();
+            foreach (DataGridViewRow row in probabilityGrid.Rows)
             {
-                "Normal" => index == 0 ? "mean" : "standard deviation",
-                "Lognormal" => index == 0 ? "log mean" : "log standard deviation",
-                "Beta" => new[] { "minimum", "maximum", "alpha", "beta" }[index],
-                "Triangular" or "PERT" => new[] { "minimum", "most likely value", "maximum" }[index],
-                _ => index == 0 ? "minimum" : "maximum"
-            };
+                if (!double.TryParse(Convert.ToString(row.Cells[0].Value), out double outcome) ||
+                    !double.TryParse(Convert.ToString(row.Cells[1].Value), out double probability))
+                    throw new ArgumentException($"Enter numeric outcome and probability values in row {row.Index + 1}.");
+                rows.Add(new(outcome, probability));
+            }
+            return new DiscreteTable(rows);
+        }
+        private void UpdatePreview()
+        {
+            if (previewPanel == null || probabilityGrid == null) return;
+            try
+            {
+                var values = ReadParameters();
+                if (SelectedKind == DistributionKind.Discrete)
+                {
+                    double total = probabilityGrid.Rows.Cast<DataGridViewRow>().Sum(r => double.TryParse(Convert.ToString(r.Cells[1].Value), out double p) ? p : 0);
+                    probabilityTotal.Text = $"Total: {total:G8} (must be 1)";
+                }
+                var table = SelectedKind == DistributionKind.Discrete ? ReadTable() : null;
+                preview = DistributionPreview.Generate(SelectedKind, values[0], values[1], values[2], values[3], table);
+            }
+            catch (ArgumentException ex) { preview = new() { ValidationMessage = ex.Message }; }
+            previewPanel.Invalidate();
+        }
 
         private void PreviewPanel_Paint(object? sender, PaintEventArgs e)
         {
@@ -588,7 +626,7 @@ namespace MonteCarlo.Excel
 
             // Visual clipping affects only drawing, never Core density values.
             double[] sorted = preview.Points.Select(p => p.Density).OrderBy(v => v).ToArray();
-            double visualMax = sorted[(int)(0.99 * (sorted.Length - 1))];
+            double visualMax = preview.IsDiscrete ? maxDensity : sorted[(int)(0.99 * (sorted.Length - 1))];
             if (visualMax <= 0) visualMax = maxDensity;
             var curve = new PointF[preview.Points.Count];
             for (int i = 0; i < curve.Length; i++)
@@ -602,7 +640,16 @@ namespace MonteCarlo.Excel
                         visualMax * (bottom - top)));
             }
             using var curvePen = new Pen(Color.SteelBlue, 2.2f);
-            g.DrawLines(curvePen, curve);
+            if (preview.IsDiscrete)
+            {
+                float gap = curve.Length > 1 ? curve.Zip(curve.Skip(1), (a, b) => b.X - a.X).Min() : 12;
+                float width = Math.Max(1, Math.Min(16, gap * .7f));
+                using var fill = new SolidBrush(Color.SteelBlue);
+                for (int i = 0; i < curve.Length; i++)
+                    g.FillRectangle(fill, curve[i].X - width / 2, curve[i].Y, width, Math.Max(0, bottom - curve[i].Y));
+                TextRenderer.DrawText(g, $"PMF max {maxDensity:G4}", Font, new Point((int)left, (int)top), Color.DimGray);
+            }
+            else g.DrawLines(curvePen, curve);
 
             string low = preview.MinimumX.ToString("G4", CultureInfo.CurrentCulture);
             string high = preview.MaximumX.ToString("G4", CultureInfo.CurrentCulture);
@@ -611,7 +658,7 @@ namespace MonteCarlo.Excel
             var highSize = TextRenderer.MeasureText(high, Font);
             TextRenderer.DrawText(g, high, Font,
                 new Point((int)right - highSize.Width, (int)bottom + 5), Color.DimGray);
-            TextRenderer.DrawText(g, $"X range: {low} to {high}", Font,
+            TextRenderer.DrawText(g, preview.RangeNote ?? $"X range: {low} to {high}", Font,
                 new Point((int)left, bounds.Height - 21), Color.DimGray);
         }
 
@@ -855,64 +902,12 @@ namespace MonteCarlo.Excel
                     : assumption.Name;
 
 
-            switch (assumption.Distribution)
+            cmbDistribution.SelectedItem = DistributionCatalog.Name((DistributionKind)assumption.Distribution);
+            if (assumption.ProbabilityTable != null)
             {
-                case DistributionType.Normal:
-
-                    cmbDistribution.SelectedItem =
-                        "Normal";
-
-                    break;
-
-
-                case DistributionType.Triangular:
-
-                    cmbDistribution.SelectedItem =
-                        "Triangular";
-
-                    break;
-
-
-                case DistributionType.Pert:
-
-                    cmbDistribution.SelectedItem =
-                        "PERT";
-
-                    break;
-
-
-                case DistributionType.Uniform:
-
-                    cmbDistribution.SelectedItem =
-                        "Uniform";
-
-                    break;
-
-
-                case DistributionType.Lognormal:
-
-                    cmbDistribution.SelectedItem =
-                        "Lognormal";
-
-                    break;
-
-
-                case DistributionType.Beta:
-
-                    cmbDistribution.SelectedItem =
-                        "Beta";
-
-                    break;
-
-
-                default:
-
-                    cmbDistribution.SelectedItem =
-                        "PERT";
-
-                    break;
+                probabilityGrid.Rows.Clear();
+                foreach (var row in assumption.ProbabilityTable.Outcomes) probabilityGrid.Rows.Add(row.Outcome, row.Probability);
             }
-
 
             UpdateParameterLabels();
 
@@ -944,420 +939,32 @@ namespace MonteCarlo.Excel
 
         private void UpdateParameterLabels()
         {
-            string distribution =
-                cmbDistribution
-                    .SelectedItem?
-                    .ToString()
-                ?? "PERT";
-
-
-            // Hide optional fields by default.
-            lblParameter3.Visible =
-                false;
-
-            txtParameter3.Visible =
-                false;
-
-            lblParameter4.Visible =
-                false;
-
-            txtParameter4.Visible =
-                false;
-
-
-            // -----------------------------------------------------
-            // NORMAL
-            // -----------------------------------------------------
-
-            if (distribution == "Normal")
+            string[] names = DistributionCatalog.Parameters(SelectedKind);
+            Label[] labels = [lblParameter1, lblParameter2, lblParameter3, lblParameter4];
+            TextBox[] fields = [txtParameter1, txtParameter2, txtParameter3, txtParameter4];
+            for (int i = 0; i < 4; i++)
             {
-                lblParameter1.Text =
-                    "Mean";
-
-                lblParameter2.Text =
-                    "Std Deviation";
-
-                return;
+                labels[i].Visible = fields[i].Visible = i < names.Length;
+                if (i < names.Length) labels[i].Text = names[i];
             }
-
-
-            // -----------------------------------------------------
-            // LOGNORMAL
-            // -----------------------------------------------------
-
-            if (distribution == "Lognormal")
-            {
-                lblParameter1.Text =
-                    "Log Mean";
-
-                lblParameter2.Text =
-                    "Log Std Dev";
-
-                return;
-            }
-
-
-            // -----------------------------------------------------
-            // UNIFORM
-            // -----------------------------------------------------
-
-            if (distribution == "Uniform")
-            {
-                lblParameter1.Text =
-                    "Minimum";
-
-                lblParameter2.Text =
-                    "Maximum";
-
-                return;
-            }
-
-
-            // -----------------------------------------------------
-            // BETA
-            // -----------------------------------------------------
-
-            if (distribution == "Beta")
-            {
-                lblParameter1.Text =
-                    "Minimum";
-
-                lblParameter2.Text =
-                    "Maximum";
-
-                lblParameter3.Text =
-                    "Alpha";
-
-                lblParameter4.Text =
-                    "Beta";
-
-
-                lblParameter3.Visible =
-                    true;
-
-                txtParameter3.Visible =
-                    true;
-
-                lblParameter4.Visible =
-                    true;
-
-                txtParameter4.Visible =
-                    true;
-
-                return;
-            }
-
-
-            // -----------------------------------------------------
-            // PERT / TRIANGULAR
-            // -----------------------------------------------------
-
-            lblParameter1.Text =
-                "Minimum";
-
-            lblParameter2.Text =
-                "Most Likely";
-
-            lblParameter3.Text =
-                "Maximum";
-
-
-            lblParameter3.Visible =
-                true;
-
-            txtParameter3.Visible =
-                true;
+            tablePanel.Visible = SelectedKind == DistributionKind.Discrete;
         }
 
-
-        // =========================================================
-        // OK
-        // =========================================================
-
-        private void BtnOK_Click(
-            object? sender,
-            EventArgs e)
+        private void BtnOK_Click(object? sender, EventArgs e)
         {
-            string assumptionName =
-                txtName.Text.Trim();
-
-
-            if (string.IsNullOrWhiteSpace(
-                    assumptionName))
+            try
             {
-                MessageBox.Show(
-                    "Enter an assumption name.",
-                    "Monte Carlo");
-
-                return;
+                if (string.IsNullOrWhiteSpace(txtName.Text)) throw new ArgumentException("Enter an assumption name.");
+                probabilityGrid.EndEdit();
+                var values = ReadParameters();
+                var table = SelectedKind == DistributionKind.Discrete ? ReadTable() : null;
+                if (DistributionPreview.Validate(SelectedKind, values[0], values[1], values[2], values[3], table) is { } error)
+                    throw new ArgumentException(error);
+                AssumptionName = txtName.Text.Trim(); Distribution = (DistributionType)SelectedKind;
+                Parameter1 = values[0]; Parameter2 = values[1]; Parameter3 = values[2]; Parameter4 = values[3]; ProbabilityTable = table;
+                DialogResult = DialogResult.OK; Close();
             }
-
-
-            string distribution =
-                cmbDistribution
-                    .SelectedItem?
-                    .ToString()
-                ?? "PERT";
-
-
-            // -----------------------------------------------------
-            // PARAMETER 1
-            // -----------------------------------------------------
-
-            if (!double.TryParse(
-                    txtParameter1.Text,
-                    out double parameter1))
-            {
-                MessageBox.Show(
-                    "Enter a valid first parameter.");
-
-                return;
-            }
-
-
-            // -----------------------------------------------------
-            // PARAMETER 2
-            // -----------------------------------------------------
-
-            if (!double.TryParse(
-                    txtParameter2.Text,
-                    out double parameter2))
-            {
-                MessageBox.Show(
-                    "Enter a valid second parameter.");
-
-                return;
-            }
-
-
-            double parameter3 =
-                0;
-
-
-            double parameter4 =
-                0;
-
-
-            // =====================================================
-            // NORMAL
-            // =====================================================
-
-            if (distribution == "Normal")
-            {
-                if (parameter2 <= 0)
-                {
-                    MessageBox.Show(
-                        "Standard deviation must be greater than zero.");
-
-                    return;
-                }
-
-
-                Distribution =
-                    DistributionType.Normal;
-            }
-
-
-            // =====================================================
-            // LOGNORMAL
-            // =====================================================
-
-            else if (distribution == "Lognormal")
-            {
-                if (parameter2 <= 0)
-                {
-                    MessageBox.Show(
-                        "Log standard deviation must be greater than zero.");
-
-                    return;
-                }
-
-
-                Distribution =
-                    DistributionType.Lognormal;
-            }
-
-
-            // =====================================================
-            // UNIFORM
-            // =====================================================
-
-            else if (distribution == "Uniform")
-            {
-                if (parameter1 >= parameter2)
-                {
-                    MessageBox.Show(
-                        "Minimum must be less than Maximum.");
-
-                    return;
-                }
-
-
-                Distribution =
-                    DistributionType.Uniform;
-            }
-
-
-            // =====================================================
-            // BETA
-            // =====================================================
-
-            else if (distribution == "Beta")
-            {
-                if (parameter1 >= parameter2)
-                {
-                    MessageBox.Show(
-                        "Minimum must be less than Maximum.");
-
-                    return;
-                }
-
-
-                if (!double.TryParse(
-                        txtParameter3.Text,
-                        out parameter3))
-                {
-                    MessageBox.Show(
-                        "Enter a valid Alpha value.");
-
-                    return;
-                }
-
-
-                if (!double.TryParse(
-                        txtParameter4.Text,
-                        out parameter4))
-                {
-                    MessageBox.Show(
-                        "Enter a valid Beta value.");
-
-                    return;
-                }
-
-
-                if (parameter3 <= 0)
-                {
-                    MessageBox.Show(
-                        "Alpha must be greater than zero.");
-
-                    return;
-                }
-
-
-                if (parameter4 <= 0)
-                {
-                    MessageBox.Show(
-                        "Beta must be greater than zero.");
-
-                    return;
-                }
-
-
-                Distribution =
-                    DistributionType.Beta;
-            }
-
-
-            // =====================================================
-            // PERT / TRIANGULAR
-            // =====================================================
-
-            else
-            {
-                if (!double.TryParse(
-                        txtParameter3.Text,
-                        out parameter3))
-                {
-                    MessageBox.Show(
-                        "Enter a valid Maximum value.");
-
-                    return;
-                }
-
-
-                if (parameter1 >= parameter3)
-                {
-                    MessageBox.Show(
-                        "Minimum must be less than Maximum.");
-
-                    return;
-                }
-
-
-                if (
-                    parameter2 < parameter1
-                    ||
-                    parameter2 > parameter3)
-                {
-                    MessageBox.Show(
-                        "Most Likely must be between Minimum and Maximum.");
-
-                    return;
-                }
-
-
-                Distribution =
-                    distribution == "PERT"
-                        ? DistributionType.Pert
-                        : DistributionType.Triangular;
-            }
-
-
-            // =====================================================
-            // SAVE OUTPUT VALUES
-            // =====================================================
-
-            MonteCarlo.Core.DistributionKind coreDistribution =
-                Distribution switch
-                {
-                    DistributionType.Normal => MonteCarlo.Core.DistributionKind.Normal,
-                    DistributionType.Triangular => MonteCarlo.Core.DistributionKind.Triangular,
-                    DistributionType.Pert => MonteCarlo.Core.DistributionKind.Pert,
-                    DistributionType.Uniform => MonteCarlo.Core.DistributionKind.Uniform,
-                    DistributionType.Lognormal => MonteCarlo.Core.DistributionKind.Lognormal,
-                    DistributionType.Beta => MonteCarlo.Core.DistributionKind.Beta,
-                    _ => throw new InvalidOperationException("Unsupported distribution.")
-                };
-
-            string? validationMessage =
-                MonteCarlo.Core.DistributionPreview.Validate(
-                    coreDistribution,
-                    parameter1,
-                    parameter2,
-                    parameter3,
-                    parameter4);
-
-            if (validationMessage != null)
-            {
-                MessageBox.Show(validationMessage, "Monte Carlo");
-                return;
-            }
-
-            AssumptionName =
-                assumptionName;
-
-
-            Parameter1 =
-                parameter1;
-
-
-            Parameter2 =
-                parameter2;
-
-
-            Parameter3 =
-                parameter3;
-
-
-            Parameter4 =
-                parameter4;
-
-
-            DialogResult =
-                DialogResult.OK;
-
-
-            Close();
+            catch (ArgumentException ex) { MessageBox.Show(ex.Message, "Monte Carlo"); }
         }
     }
 }

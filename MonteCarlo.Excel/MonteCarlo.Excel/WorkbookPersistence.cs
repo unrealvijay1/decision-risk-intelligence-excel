@@ -45,6 +45,8 @@ namespace MonteCarlo.Excel
             var savedScenarios = CaptureScenarioBlock(configSheet);
             var savedCorrelations = CorrelationsForModelSave(configSheet);
             var savedSpc = CaptureSpcBlock(configSheet);
+            // Validate variable-length data before clearing any existing configuration.
+            var distributionData = SimulationModel.Assumptions.ToDictionary(a => a, DistributionDataPersistence.Serialize);
             // Definition saves preserve the separate workbook settings block verbatim, even if malformed.
             object?[] savedSettings = new object?[4];
             for (int i = 0; i < 4; i++) savedSettings[i] = configSheet.Cells[1, 17 + i].Value2;
@@ -56,6 +58,8 @@ namespace MonteCarlo.Excel
             // Text metadata must never become worksheet formulas.
             configSheet.Range["A:D"].NumberFormat = "@";
             configSheet.Range["I:N"].NumberFormat = "@";
+            configSheet.Cells[1, 16].NumberFormat = "@";
+            configSheet.Cells[1, 16].Value2 = DistributionDataPersistence.Header;
 
 
             // =====================================================
@@ -162,6 +166,8 @@ namespace MonteCarlo.Excel
 
 
                 configSheet.Cells[row, 10].Value2 = assumption.CellLink;
+                configSheet.Cells[row, 16].NumberFormat = "@";
+                configSheet.Cells[row, 16].Value2 = distributionData[assumption];
                 ModelCellHighlight.ApplyRow(workbook, configSheet, row, "Assumption", assumption.SheetName, assumption.CellAddress, assumption.CellLink, originalFills);
                 row++;
             }
@@ -586,6 +592,14 @@ namespace MonteCarlo.Excel
             string cellLink = Convert.ToString(ReadOptional(configSheet, row, 10, "CellLink")) ?? "";
             ResolveSavedLink(configSheet.Parent, cellLink, ref sheetName, ref cellAddress,
                 validation, $"Saved assumption row {row} ({sheetName}!{cellAddress})");
+            DistributionType storedKind = Enum.TryParse(distributionText, true, out DistributionType kind) ? kind : (DistributionType)(-1);
+            DiscreteTable? probabilityTable = null;
+            try { probabilityTable = DistributionDataPersistence.Deserialize(storedKind, (object?)configSheet.Cells[1, 16].Value2, (object?)configSheet.Cells[row, 16].Value2); }
+            catch (ArgumentException ex)
+            {
+                if (validation == null) throw;
+                validation.Add($"Saved assumption row {row}", ex.Message, "Correct the probability table in Define Assumption.");
+            }
 
             if (validation != null)
             {
@@ -595,7 +609,7 @@ namespace MonteCarlo.Excel
                 object?[] raw = new object?[4];
                 for (int i = 0; i < (newLayout ? 4 : 3); i++)
                     raw[i] = ExcelSimulationWorkbook.ReadCellValue(ExcelDnaUtil.Application, configSheet.Cells[row, 5 + i]);
-                SimulationValidation.ValidateParameters(validation, location, savedDistribution, raw);
+                SimulationValidation.ValidateParameters(validation, location, savedDistribution, raw, probabilityTable);
                 if (string.IsNullOrWhiteSpace(sheetName) || string.IsNullOrWhiteSpace(cellAddress))
                     validation.Add(location, "The worksheet or cell reference is missing.", "Redefine the assumption using a single input cell.");
             }
@@ -633,6 +647,7 @@ namespace MonteCarlo.Excel
                 new AssumptionDefinition
                 {
                     CellLink = cellLink,
+                    ProbabilityTable = probabilityTable,
                     Name =
                         name,
 

@@ -9,9 +9,12 @@ internal static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (args.Contains("--live-distributions")) { DistributionLiveChecks.Run(); return; }
+        if (args.Contains("--distributions")) { DistributionLayoutChecks.Run(); return; }
         if (args.Contains("--correlation-performance")) { CorrelationPerformanceChecks.Run(); return; }
         if (args.Contains("--live-scenarios")) { ScenarioLiveChecks.Run(); return; }
         if (args.Contains("--live-spc")) { SpcLiveChecks.Run(); return; }
+        DistributionLayoutChecks.Run();
         CorrelationLayoutChecks.Run();
         SpcLayoutChecks.Run();
         ScenarioLayoutChecks.Run();
@@ -192,4 +195,3 @@ internal static class Program
     static IEnumerable<Control> Descendants(Control c) => c.Controls.Cast<Control>().SelectMany(x => new[] { x }.Concat(Descendants(x)));
     static void Layout(Control c) { c.PerformLayout(); foreach (Control child in c.Controls) Layout(child); c.PerformLayout(); }
 }
-namespace MonteCarlo.Excel { public static class ReportExporter { public static void Export(SimulationRunResult result) => throw new NotSupportedException("Export not exercised by layout harness"); } }

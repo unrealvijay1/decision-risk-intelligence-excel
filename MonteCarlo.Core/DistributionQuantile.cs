@@ -3,16 +3,19 @@ namespace MonteCarlo.Core;
 /// <summary>Inverse marginal transform used only for correlated sampling. Independent samplers remain unchanged.</summary>
 public static class DistributionQuantile
 {
-    public static double FromGaussian(DistributionKind kind, double z, double p1, double p2, double p3 = 0, double p4 = 0)
+    public static double FromGaussian(DistributionKind kind, double z, double p1, double p2, double p3 = 0, double p4 = 0, DiscreteTable? table = null)
     {
         // Avoid roundoff to CDF endpoints for unbounded marginals; inverse Phi(Phi(z)) is exactly z.
         if (kind == DistributionKind.Normal) return p1 + p2 * z;
         if (kind == DistributionKind.Lognormal) return Math.Exp(p1 + p2 * z);
-        return Inverse(kind, DistributionFitter.StandardNormalCDF(z), p1, p2, p3, p4);
+        double u = DistributionFitter.StandardNormalCDF(z);
+        if (kind >= DistributionKind.Exponential) u = Math.Clamp(u, 1e-16, Math.BitDecrement(1d));
+        return Inverse(kind, u, p1, p2, p3, p4, table);
     }
 
-    public static double Inverse(DistributionKind kind, double probability, double p1, double p2, double p3 = 0, double p4 = 0)
+    public static double Inverse(DistributionKind kind, double probability, double p1, double p2, double p3 = 0, double p4 = 0, DiscreteTable? table = null)
     {
+        if (kind >= DistributionKind.Exponential) return ExtendedDistributions.Quantile(kind, probability, p1, p2, p3, p4, table);
         if (DistributionPreview.Validate(kind, p1, p2, p3, p4) is string error) throw new ArgumentException(error);
         if (!double.IsFinite(probability) || probability < 0 || probability > 1) throw new ArgumentException("Probability must be between zero and one.");
         double u = probability;

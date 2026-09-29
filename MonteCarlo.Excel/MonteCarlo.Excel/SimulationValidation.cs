@@ -52,18 +52,10 @@ public static class SimulationValidation
     }
 
     public static void ValidateParameters(ValidationResult result, string location,
-        DistributionType distribution, IReadOnlyList<object?> parameters)
+        DistributionType distribution, IReadOnlyList<object?> parameters, DiscreteTable? table = null)
     {
-        string[] names = distribution switch
-        {
-            DistributionType.Normal => ["Mean", "Standard deviation"],
-            DistributionType.Lognormal => ["Log mean", "Log standard deviation"],
-            DistributionType.Uniform => ["Minimum", "Maximum"],
-            DistributionType.Triangular or DistributionType.Pert => ["Minimum", "Most likely", "Maximum"],
-            DistributionType.Beta => ["Minimum", "Maximum", "Alpha", "Beta"],
-            _ => []
-        };
-        if (names.Length == 0)
+        string[] names = DistributionCatalog.Parameters((DistributionKind)distribution);
+        if (names.Length == 0 && distribution != DistributionType.Discrete)
         {
             result.Add(location, "The distribution is not supported.", "Choose a supported distribution in Define Assumption.");
             return;
@@ -83,7 +75,7 @@ public static class SimulationValidation
         if (!valid) return;
         // Same rules used by the existing assumption editor; sampling remains unchanged.
         string? error = DistributionPreview.Validate((DistributionKind)distribution,
-            values[0], values[1], values[2], values[3]);
+            values[0], values[1], values[2], values[3], table);
         if (error != null)
             result.Add(location, error, "Correct these distribution parameters in Define Assumption.");
     }
@@ -100,7 +92,7 @@ public static class SimulationValidation
             string location = Location("Assumption", assumption.Name, assumption.SheetName, assumption.CellAddress);
             ValidateReference(result, location, assumption.SheetName, assumption.CellAddress);
             ValidateParameters(result, location, assumption.Distribution,
-                [assumption.Parameter1, assumption.Parameter2, assumption.Parameter3, assumption.Parameter4]);
+                [assumption.Parameter1, assumption.Parameter2, assumption.Parameter3, assumption.Parameter4], assumption.ProbabilityTable);
         }
         foreach (var forecast in forecasts)
             ValidateReference(result, Location("Forecast", forecast.Name, forecast.SheetName, forecast.CellAddress),

@@ -46,13 +46,19 @@ Ribbon run opens a fresh modal `ResultsForm`; chart/calculator actions do not re
   spaces use explicit `LogicalName` metadata. The supplied clear-cell filename is actually
   `Clear Cell Defition.png` (sic); do not substitute the spelling from the request. Packed XLLs
   carry these resources inside the compressed Excel assembly and require no external PNG folder.
-- Six distributions: Normal (mean, SD), Lognormal (log mean, log SD), Uniform (min, max),
-  Triangular and PERT (min, most likely, max), Beta (min, max, alpha, beta). Preserve
-  parameter order across UI, sampling and persistence.
+- Fourteen distributions. Original enum IDs/order remain Normal=0, Triangular=1, PERT=2,
+  Uniform=3, Lognormal=4, Beta=5. Their parameter order and seeded sampling paths are unchanged:
+  Normal (mean, SD), Lognormal (log mean, log SD), Uniform (min, max), Triangular/PERT
+  (min, most likely, max), Beta (min, max, alpha, beta). Appended IDs 6–13 are Exponential
+  (mean), Poisson (lambda), Binomial (trials, probability), Discrete (separate probability
+  table), Weibull (shape, scale), Gamma (shape, scale), Bernoulli (probability), Truncated
+  Normal (mean, SD, lower, upper). Scalar positions correspond to Parameter1–Parameter4.
 - Define/Edit Assumption provides analytical previews of unsaved parameters with inline
   validation. Previewing neither samples nor writes Excel. Historical-data fitting
   supports Normal, Lognormal, Uniform and Triangular, ranked by AIC then KS; fitting
-  does not support all six sampling distributions.
+  remains limited to those four families; the form explicitly says so. Discrete uses a
+  dedicated outcome/probability grid, Add Row/Delete Row, and a live total. The form adjusts
+  its preview/footer to the available client height at scaled or constrained window sizes.
 - Model Manager supports viewing, navigation, editing and confirmed deletion.
   `ForecastEditForm` uses detached `ForecastEditDraft` for name, explicit target,
   direction, default P80 or No Target. Cancel/invalid drafts do not apply changes.
@@ -79,6 +85,7 @@ writing configuration does not automatically save the workbook file.
 | J (10) | CellLink: hidden workbook-scoped `_MC_Cell_` GUID name |
 | K:N (11–14) | TargetConfigured, Target, TargetDirection, RequestedConfidence |
 | O (15) | `OriginalFillV1`: original Interior snapshot as JSON |
+| P (16) | `DistributionDataV1`: per-assumption version-1 JSON `{Version,Outcomes:[{Outcome,Probability}]}` for Discrete only |
 | Q:T (17–20), row 1 only | `SimulationSettingsV1`, trial count, seed mode, optional fixed seed |
 | V:W (22–23) | V1=`ScenarioDefinitionsV2`, W1=JSON chunk count; V2 onward holds 30,000-character chunks; version V1 remains readable |
 | Y:Z (25–26) | Y1=`AssumptionCorrelationsV1`, Z1=chunk count; Y2 onward holds 30,000-character JSON chunks |
@@ -89,6 +96,10 @@ Optional metadata is backward compatible. Text metadata is written as text to av
 interpretation. Invalid saved definitions/targets and broken references surface structured
 validation errors and block simulation. Event registration/restore failures have safe
 messages and Trace diagnostics; initial restore is independent of event registration.
+Missing P data is valid for legacy scalar distributions. Discrete requires a valid versioned
+table; unsupported/malformed tables block execution with a row-specific correction message.
+Up to 100 rows fit in one Excel text cell. Definition saves preserve settings, scenarios,
+correlations and SPC blocks; the existing scalar columns retain their meanings.
 
 Hidden names track direct single-cell references through sheet renames and structural
 edits. Restore resolves current sheet/address. Broken/deleted/cross-workbook links never
@@ -137,7 +148,7 @@ integers. UI and execution share validation. Run Simulation uses saved settings 
 reopening the dialog. Missing settings use defaults; malformed settings block normal
 execution. The older `TryRun(int)` API remains supported with explicit trials/Automatic.
 
-Each execution creates one `Random(actualSeed)` and passes it through all six samplers
+Each execution creates one `Random(actualSeed)` and passes it through all fourteen samplers
 and nested helpers. Automatic seeds are generated once per run. Results retain configured
 settings and actual seed without changing Automatic to Fixed. Same-seed replay is tested;
 volatile Excel formulas, external data and runtime changes are outside this guarantee.
@@ -161,6 +172,36 @@ Statistics use population SD and linearly interpolated percentiles at `p * (n - 
 Sensitivity is Spearman rank correlation with average ranks for ties, ordered by absolute
 correlation. Preserve these semantics when changing presentation.
 
+### Additional distribution mathematics and limits
+
+`ExtendedDistributions` is the authoritative Core implementation for the eight new families;
+`DistributionSampler`, `DistributionQuantile`, and `DistributionPreview` delegate to it.
+`DistributionCatalog` supplies labels/defaults; immutable `DiscreteTable` sorts paired rows,
+requires 2–100 finite unique outcomes and nonnegative probabilities, accepts totals within
+1e-10 of one, and normalizes accepted totals. Zero-mass rows never sample. Discrete quantiles
+return the smallest outcome reaching the requested cumulative mass, with supported endpoints.
+Bernoulli/Binomial p=0/1 are deterministic. New continuous previews show central 99.8% with
+an explicit tail note; discrete previews use PMF bars at actual outcome coordinates. Large
+count previews show at most 2,001 central integer outcomes with an omission note, never a
+continuous approximation. Previewing never consumes RNG or writes workbook state.
+
+Exponential/Weibull use inverse transforms. Poisson uses small-lambda product sampling and
+PTRS rejection; Binomial uses beta order-statistic conditioning instead of n draws; Gamma
+uses Marsaglia–Tsang with shape boosting. Truncated Normal uses conditional rejection with
+tail tilting/narrow-interval envelopes, not clipping. All rejection loops are bounded.
+Incomplete-gamma series/continued fractions, incomplete beta, log-space Gamma inverse and
+stable Normal interval masses support CDFs/quantiles. Narrow Normal masses use Gaussian
+quadrature; same-side tails use log survival probabilities. No normal approximation is
+substituted for a count distribution.
+
+Numerical limits are explicit validation errors: Poisson lambda <=1,000,000; Binomial integer
+trials 1–1,000,000; Gamma/Weibull shape 0.01–1,000,000 and positive scale, additionally rejecting
+shape/scale tails whose estimated logs fall outside [-740,700] (so not every shape in that
+interval is supported). Exponential mean is positive and <=Double.MaxValue/1024. Truncated
+Normal requires finite standardized bounds within ±10,000 SD and representable interior
+values in both original and standardized units. Floating-point resolution still limits
+extreme-tail/narrow-bound accuracy. Overflow/nonconvergence stops execution with restoration.
+
 ## Assumption Correlations
 
 Model Setup → Correlations opens `AssumptionCorrelationsForm`: add/edit/delete pairs using
@@ -180,7 +221,11 @@ is 1e-12; coefficients are never adjusted to repair an invalid matrix.
 Normal/Lognormal use the equivalent direct normal transform; Uniform/Triangular use closed
 forms; Beta/PERT use incomplete-beta continued fractions and inverse search. It reuses the
 existing normal CDF and log-gamma helpers. Floating-point endpoint limits apply; numerical
-nonconvergence/range failures stop the run with restoration. All six distributions are tested.
+nonconvergence/range failures stop the run with restoration. All fourteen distributions are
+tested. The eight additions delegate to Core quantiles, clamping normal-CDF probabilities
+to [1e-16, BitDecrement(1)] to avoid infinite endpoint samples. Discrete transforms create
+ties; observed Pearson coefficients differ from latent coefficients and some final outcome
+correlations are unattainable. There is no independent fallback for configured dependence.
 No-correlation and zero-only models retain the exact independent seeded sequence. Unlinked
 inputs retain their existing samplers; correlated vectors share the run's seeded Random.
 Adding relationships changes random consumption, so replay requires the same full configuration.
@@ -300,6 +345,9 @@ Core owns `ScenarioDefinition`, extensible `ScenarioAdjustmentType`, validation 
 - Uniform: scale bounds; Triangular/PERT: scale min/mode/max, retaining relative shape.
 - Beta: scale bounds, retain alpha/beta.
 - Lognormal: add log(factor) to log mean, retain log SD.
+- The eight additions retain their source parameters/table and record a sample scale in
+  `ScenarioDistribution`; execution samples the unchanged source then scales once. Count
+  or Bernoulli scaling never changes success probability and never rounds scaled outcomes.
 - Exactly -100%: explicit zero constant. Below -100% is rejected rather than reflecting
   distributions/signs. Non-finite percentages, invalid source/transformed parameters and
   representational overflow are rejected; sample-time overflow also stops execution.
@@ -481,23 +529,31 @@ remain release work; generated x86 packaging does not establish live x86 support
 
 ## Verification and working constraints
 
-Current suite: **582 xUnit cases**,
+Current suite: **691 xUnit cases** (baseline 582; 109 additional distribution cases),
 zero failures/skips in Debug and Release; full solution builds and x86/x64 packed-XLL
 generation passed in both configurations. Require both configurations for changes to
 execution/persistence. The Windows harness passes six existing Results cases and six
 Scenario editor/comparison cases (both analysis modes) at 100/125/150% geometry scaling.
 Three correlation-editor cases cover add/edit/delete and help/grid/footer bounds at the same scales.
+The distribution harness adds 42 form cases (14 families at each scale), covering selector,
+parameter visibility/labels, valid previews, table add/delete/total errors, editing/saving,
+and control bounds. Rendered Discrete/Truncated Normal previews are in
+`artifacts/distribution-layout/`. Distribution tests include one million samples each for
+large Poisson/Binomial/Gamma parameters, analytic references, tails, singular/mixed
+correlations, common-seed scenarios with a selected adjusted baseline, disk-format parsing,
+tracked reference/edit/delete round trips and inclusive target mass with tied sensitivities.
 Three SPC configuration/results cases cover five rule defaults/selections, scroll access,
 control overlap, multi-rule details, both chart paint paths, footer bounds and resizing at
 100/125/150% geometry scaling. SPC has 78 unit cases covering reference statistics, fixed
 baselines/zones, strict same-side rules, episode deduplication, rejected gaps/edge cases,
 target independence, multi-rule export tables and legacy/five-rule persistence. Debug and
 Release layouts and rendered previews were checked; private Excel SPC and Scenario checks
-passed, including owned process exit. Current ribbon packages are in `artifacts/ribbon-debug/`
-and `artifacts/ribbon-release/`. Both configurations pass all 582 cases and full builds.
+passed, including owned process exit. Current distribution packages are in
+`artifacts/distributions-debug/` and `artifacts/distributions-release/`.
 All four XLLs were extracted and verified: correct x86/x64 PE headers, all 11 PNG hashes,
-transparent 32×32 image callback results, five ordered groups and unchanged 12 callback mappings.
-A private Excel instance accepted the Release x64 XLL. Native ribbon interaction, narrow-window
+transparent 32×32 image callback results, five ordered groups and unchanged 12 callback mappings;
+packed Core/Excel SHA-256 hashes match their final compiled assemblies.
+A private Excel instance previously accepted the ribbon Release x64 XLL. Native ribbon interaction, narrow-window
 collapse and actual 100/125/150% Windows DPI rendering remain manual checks; no approved mockup
 image was supplied, so the implementation follows the requested textual layout.
 
@@ -522,7 +578,7 @@ resource cleanup. Save/reopen unit tests use in-memory
 adapters, not real Excel files or COM.
 
 The separate layout harness compiles production ResultsForm with a workbook double,
-creates hidden native handles and stubs Export. Automatic/Fixed cases use 100/125/150%
+creates native handles and links the production report exporter. Automatic/Fixed cases use 100/125/150%
 geometry scaling and matching bitmap DPI. Assertions cover tabs, shared selector/footer,
 statistics/calculator bounds, forecast/direction changes, exact target retention, positive
 plot/bar geometry, both paint paths and marker placement/labels. These are presence/geometry
@@ -551,6 +607,16 @@ reference moves/deletions, clear/redefine, seeded replay and Export followed by 
 updates. UI verification must include actual display scaling, both charts, close/edge
 markers, constant/out-of-range cases, both calculators/directions and native control text.
 Automated checks do not establish completion of these live checks.
+
+`-- --live-distributions` uses a synthetic .xlsx and private Excel STA instance: all eight
+new families save/reopen from disk, independent fixed-seed runs replay, mixed
+Exponential/Poisson correlations run through production loading/execution, all eight
+forecasts/sensitivities are produced, input formulas/number formats restore, and report
+parameter descriptions contain the new parameters/table. The owned Excel process exits;
+user instances are not used. Full report export interaction, live x86 loading, actual
+per-monitor DPI and arbitrary customer workbooks remain manual checks. The harness's
+scenario unit tests cover all eight families; live distribution checking is not a full
+interactive scenario/report certification.
 
 `-- --live-spc` runs the SPC workbook service in a private Excel STA instance with a synthetic
 workbook: strict Excel errors, text/date labels, appended observations with fixed limits/zones,

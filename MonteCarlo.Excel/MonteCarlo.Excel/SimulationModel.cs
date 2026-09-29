@@ -14,7 +14,8 @@ namespace MonteCarlo.Excel
         Pert,
         Uniform,
         Lognormal,
-        Beta
+        Beta,
+        Exponential, Poisson, Binomial, Discrete, Weibull, Gamma, Bernoulli, TruncatedNormal
     }
 
 
@@ -109,6 +110,11 @@ namespace MonteCarlo.Excel
 
 
         public double Parameter4 { get; set; }
+        public DiscreteTable? ProbabilityTable { get; set; }
+        public string ParameterDescription => Distribution == DistributionType.Discrete
+            ? string.Join("; ", ProbabilityTable?.Outcomes.Select(r => $"{r.Outcome:G17}: {r.Probability:G17}") ?? [])
+            : string.Join(", ", DistributionCatalog.Parameters((DistributionKind)Distribution)
+                .Select((name, i) => $"{name}={new[] { Parameter1, Parameter2, Parameter3, Parameter4 }[i]:G6}"));
     }
 
 

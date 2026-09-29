@@ -33,7 +33,7 @@ public static class ScenarioValidation
 }
 
 public sealed record ScenarioDistribution(DistributionKind Kind, double P1, double P2, double P3 = 0, double P4 = 0,
-    double? Constant = null);
+    double? Constant = null, DiscreteTable? ProbabilityTable = null, double SampleScale = 1);
 
 /// <summary>Percentage means Y = (1 + percentage/100) X, not a percentage of every parameter.</summary>
 public static class ScenarioTransformation
@@ -55,9 +55,18 @@ public static class ScenarioTransformation
             if (!double.IsFinite(scaled)) throw new ArgumentException("The percentage produces a constant outside the numeric range.");
             return source with { Constant = scaled };
         }
-        string? error = DistributionPreview.Validate(source.Kind, source.P1, source.P2, source.P3, source.P4);
+        string? error = DistributionPreview.Validate(source.Kind, source.P1, source.P2, source.P3, source.P4, source.ProbabilityTable);
         if (error != null) throw new ArgumentException(error);
         if (factor == 0) return source with { Constant = 0 };
+        if (source.Kind >= DistributionKind.Exponential)
+        {
+            double scale = source.SampleScale * factor;
+            if (!double.IsFinite(scale) || scale < 0) throw new ArgumentException("The percentage produces an invalid sample scale.");
+            // Count-family scaling is a value transform, never a change in success probability.
+            foreach (double value in source.ProbabilityTable?.Outcomes.Select(r => r.Outcome) ?? new[] { source.P1, source.P2, source.P3, source.P4 })
+                if (!double.IsFinite(value * scale)) throw new ArgumentException("The percentage produces values outside the numeric range.");
+            return source with { SampleScale = scale };
+        }
         var result = source.Kind switch
         {
             DistributionKind.Normal => source with { P1 = source.P1 * factor, P2 = source.P2 * factor },

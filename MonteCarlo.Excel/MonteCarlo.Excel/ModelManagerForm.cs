@@ -430,6 +430,7 @@ namespace MonteCarlo.Excel
         private static string GetParameterText(
             AssumptionDefinition assumption)
         {
+            if (assumption.Distribution >= DistributionType.Exponential) return assumption.ParameterDescription;
             switch (
                 assumption.Distribution)
             {
@@ -800,6 +801,7 @@ namespace MonteCarlo.Excel
 
                 assumption.Parameter4 =
                     form.Parameter4;
+                assumption.ProbabilityTable = form.ProbabilityTable;
 
 
                 WorkbookPersistence

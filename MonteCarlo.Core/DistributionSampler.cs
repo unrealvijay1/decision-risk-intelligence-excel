@@ -9,7 +9,8 @@ namespace MonteCarlo.Core
         Pert,
         Uniform,
         Lognormal,
-        Beta
+        Beta,
+        Exponential, Poisson, Binomial, Discrete, Weibull, Gamma, Bernoulli, TruncatedNormal
     }
 
 
@@ -24,10 +25,14 @@ namespace MonteCarlo.Core
             double parameter1,
             double parameter2,
             double parameter3 = 0,
-            double parameter4 = 0, Random? random = null)
+            double parameter4 = 0, Random? random = null, DiscreteTable? table = null)
         {
             switch (distribution)
             {
+                case DistributionKind.Exponential or DistributionKind.Poisson or DistributionKind.Binomial or
+                    DistributionKind.Discrete or DistributionKind.Weibull or DistributionKind.Gamma or
+                    DistributionKind.Bernoulli or DistributionKind.TruncatedNormal:
+                    return ExtendedDistributions.Sample(distribution, parameter1, parameter2, parameter3, parameter4, random ?? Random.Shared, table);
                 case DistributionKind.Normal:
 
                     return

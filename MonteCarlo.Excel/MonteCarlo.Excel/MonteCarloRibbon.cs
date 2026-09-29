@@ -368,7 +368,8 @@ namespace MonteCarlo.Excel
                             form.Parameter3,
 
                         Parameter4 =
-                            form.Parameter4
+                            form.Parameter4,
+                        ProbabilityTable = form.ProbabilityTable
                     });
 
 

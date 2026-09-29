@@ -138,7 +138,7 @@ public static class SimulationExecution
                 {
                     double sample = correlatedIndices.TryGetValue(assumption, out int correlatedIndex)
                         ? DistributionQuantile.FromGaussian((DistributionKind)assumption.Distribution, gaussian[correlatedIndex],
-                            assumption.Parameter1, assumption.Parameter2, assumption.Parameter3, assumption.Parameter4)
+                            assumption.Parameter1, assumption.Parameter2, assumption.Parameter3, assumption.Parameter4, assumption.ProbabilityTable)
                         : GenerateSample(assumption, random);
                     if (sampleTransform != null) sample = sampleTransform(assumption, sample);
                     if (!double.IsFinite(sample))
@@ -223,46 +223,7 @@ public static class SimulationExecution
 
         private static double GenerateSample(AssumptionDefinition assumption, Random random)
         {
-            MonteCarlo.Core.DistributionKind distribution =
-                assumption.Distribution switch
-                {
-                    DistributionType.Normal =>
-                        MonteCarlo.Core
-                            .DistributionKind
-                            .Normal,
-
-                    DistributionType.Triangular =>
-                        MonteCarlo.Core
-                            .DistributionKind
-                            .Triangular,
-
-                    DistributionType.Pert =>
-                        MonteCarlo.Core
-                            .DistributionKind
-                            .Pert,
-
-                    DistributionType.Uniform =>
-                        MonteCarlo.Core
-                            .DistributionKind
-                            .Uniform,
-
-                    DistributionType.Lognormal =>
-                        MonteCarlo.Core
-                            .DistributionKind
-                            .Lognormal,
-
-                    DistributionType.Beta =>
-                        MonteCarlo.Core
-                            .DistributionKind
-                            .Beta,
-
-                    _ =>
-                        throw new InvalidOperationException(
-                            $"Unsupported distribution: " +
-                            $"{assumption.Distribution}")
-                };
-
-
+            var distribution = (DistributionKind)assumption.Distribution;
             return
                 MonteCarlo.Core
                     .DistributionSampler
@@ -271,6 +232,6 @@ public static class SimulationExecution
                         assumption.Parameter1,
                         assumption.Parameter2,
                         assumption.Parameter3,
-                        assumption.Parameter4, random);
+                        assumption.Parameter4, random, assumption.ProbabilityTable);
         }
 }

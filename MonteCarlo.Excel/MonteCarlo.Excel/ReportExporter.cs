@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ExcelDna.Integration;
 
 namespace MonteCarlo.Excel
@@ -752,6 +752,7 @@ namespace MonteCarlo.Excel
         private static string GetAssumptionDescription(
             AssumptionDefinition assumption)
         {
+            if (assumption.Distribution >= DistributionType.Exponential) return assumption.ParameterDescription;
             switch (
                 assumption.Distribution)
             {
