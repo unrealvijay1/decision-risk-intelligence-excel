@@ -9,11 +9,20 @@ internal static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (args.Contains("--live-iterative-optimizer")) { IterativeOptimizerLiveChecks.Run(); return; }
+        if (args.Contains("--live-cell-constraints")) { CellConstraintLiveChecks.Run(); return; }
+        if (args.Contains("--constraints")) { ConstraintLayoutChecks.Run(); return; }
+        if (args.Contains("--live-layout")) { LiveRunLayoutChecks.Run(); return; }
         if (args.Contains("--live-distributions")) { DistributionLiveChecks.Run(); return; }
         if (args.Contains("--distributions")) { DistributionLayoutChecks.Run(); return; }
         if (args.Contains("--correlation-performance")) { CorrelationPerformanceChecks.Run(); return; }
         if (args.Contains("--live-scenarios")) { ScenarioLiveChecks.Run(); return; }
         if (args.Contains("--live-spc")) { SpcLiveChecks.Run(); return; }
+        if (args.Contains("--live-optimizer")) { OptimizerLiveChecks.Run(); return; }
+        if (args.Contains("--optimizer")) { OptimizerLayoutChecks.Run(); return; }
+        LiveRunLayoutChecks.Run();
+        ConstraintLayoutChecks.Run();
+        OptimizerLayoutChecks.Run();
         DistributionLayoutChecks.Run();
         CorrelationLayoutChecks.Run();
         SpcLayoutChecks.Run();
@@ -74,10 +83,9 @@ internal static class Program
                 double x = plot.Left + (marker - data.Minimum) / (data.Maximum - data.Minimum) * plot.Width;
                 if (!double.IsFinite(x) || x < plot.Left || x > plot.Right) throw new Exception("Marker outside plot");
             }
-            var selector = (ComboBox)typeof(ResultsForm).GetField("cmbChartView", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(form)!;
-            foreach (int view in new[] { 0, 1 })
+            foreach (int view in new[] { 0 })
             {
-                selector.SelectedIndex = view;
+
                 var paint = typeof(ResultsForm).GetMethod("HistogramPanel_Paint", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
                 paint.Invoke(form, new object[] { panel, new PaintEventArgs(graphics, panel.ClientRectangle) });
                 int chartPixels = 0, targetPixels = 0, percentilePixels = 0;

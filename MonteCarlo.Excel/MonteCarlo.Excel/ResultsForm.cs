@@ -29,10 +29,7 @@ namespace MonteCarlo.Excel
         private readonly Panel histogramPanel;
         private readonly Panel tornadoPanel;
 
-        private static bool cumulativeViewSelected;
-        private readonly ComboBox cmbChartView;
-        private readonly System.Collections.Generic.Dictionary<ForecastRunResult, CumulativeProbabilityResult>
-            cumulativeResults = new();
+
 
         private readonly TextBox txtTarget;
         private readonly TextBox txtConfidence;
@@ -276,22 +273,7 @@ namespace MonteCarlo.Excel
             Controls.Add(
                 histogramPanel);
 
-            cmbChartView = new ComboBox
-            {
-                Left = 850, Top = 120, Width = 210,
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                AccessibleName = "Forecast chart view"
-            };
-            cmbChartView.Items.AddRange(new object[] { "Distribution", "Cumulative" });
-            cmbChartView.SelectedIndex = cumulativeViewSelected ? 1 : 0;
-            lblHistogram.Text = cumulativeViewSelected ? "Cumulative Probability" : "Forecast Distribution";
-            cmbChartView.SelectedIndexChanged += (_, _) =>
-            {
-                cumulativeViewSelected = cmbChartView.SelectedIndex == 1;
-                lblHistogram.Text = cumulativeViewSelected ? "Cumulative Probability" : "Forecast Distribution";
-                histogramPanel.Invalidate();
-            };
-            Controls.Add(cmbChartView);
+
 
 
             // =====================================================
@@ -748,13 +730,13 @@ namespace MonteCarlo.Excel
             var chart = Grid(1, 2);
             chart.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             chart.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            var chartHeader = Grid(2, 1);
+            var chartHeader = Grid(1, 1);
             chartHeader.AutoSize = true;
             chartHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            chartHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
             chartTitle.AutoSize = true;
             Place(chartHeader, chartTitle, 0, 0);
-            Place(chartHeader, cmbChartView, 1, 0);
+
             Place(chart, chartHeader, 0, 0);
             Place(chart, histogramPanel, 0, 1);
             Place(forecastBody, chart, 1, 0);
@@ -1112,115 +1094,9 @@ namespace MonteCarlo.Excel
             object? sender,
             PaintEventArgs e)
         {
-            if (cmbChartView.SelectedIndex == 1)
-            {
-                DrawCumulative(e.Graphics, histogramPanel.ClientRectangle);
-                return;
-            }
             DrawHistogram(
                 e.Graphics,
                 histogramPanel.ClientRectangle);
-        }
-
-        private void DrawCumulative(Graphics graphics, Rectangle area)
-        {
-            var state = graphics.Save();
-            try
-            {
-                graphics.SetClip(area);
-                graphics.Clear(SystemColors.Window);
-                if (!cumulativeResults.TryGetValue(currentForecastResult, out var data))
-                {
-                    data = CumulativeProbability.Build(currentForecastResult.Values);
-                    cumulativeResults.Add(currentForecastResult, data);
-                }
-                using Font axisFont = new Font("Segoe UI", 8);
-                if (data.ValidationMessage != null || data.Points.Count == 0)
-                {
-                    graphics.DrawString(data.ValidationMessage ?? "No simulation results available.",
-                        axisFont, SystemBrushes.ControlText, new RectangleF(12, 12, area.Width - 24, area.Height - 24));
-                    return;
-                }
-
-                double min = data.Points[0].X;
-                double max = data.Points[^1].X;
-                if (currentTarget.HasValue)
-                {
-                    min = Math.Min(min, currentTarget.Value);
-                    max = Math.Max(max, currentTarget.Value);
-                }
-                // Padding makes the 0%/100% tails and constant-outcome jump visible.
-                double padding = Math.Max(Math.Abs(min), Math.Abs(max)) * .05;
-                if (padding == 0) padding = 1;
-                double paddedMin = min - padding;
-                double paddedMax = max + padding;
-                if (double.IsFinite(paddedMin)) min = paddedMin;
-                if (double.IsFinite(paddedMax)) max = paddedMax;
-
-                using Font markerFont = new Font("Segoe UI", 8, FontStyle.Bold);
-                int rowHeight = (int)Math.Ceiling(markerFont.GetHeight(graphics)) + 8;
-                int top = 4 + 3 * rowHeight + 4;
-                const int left = 55;
-                int width = area.Width - left - 25;
-                int height = area.Height - top - 55;
-                if (width <= 0 || height <= 0) return;
-                float bottom = top + height;
-                float Y(double probability) => bottom - (float)(probability * height);
-
-                DrawTargetRegions(graphics, min, max, left, top, width, height);
-                using Pen gridPen = new Pen(SystemColors.ControlLight);
-                using Pen axisPen = new Pen(SystemColors.ControlText);
-                for (int percent = 0; percent <= 100; percent += 25)
-                {
-                    float y = Y(percent / 100d);
-                    graphics.DrawLine(gridPen, left, y, left + width, y);
-                    string label = $"{percent}%";
-                    SizeF size = graphics.MeasureString(label, axisFont);
-                    graphics.DrawString(label, axisFont, SystemBrushes.ControlText,
-                        left - size.Width - 5, y - size.Height / 2);
-                }
-                graphics.DrawLine(axisPen, left, top, left, bottom);
-                graphics.DrawLine(axisPen, left, bottom, left + width, bottom);
-                using Pen curvePen = new Pen(SystemColors.Highlight, 2);
-                float previousX = left;
-                foreach (var point in data.Points)
-                {
-                    float x = ValueToX(point.X, min, max, left, width);
-                    graphics.DrawLine(curvePen, previousX, Y(point.ProbabilityBefore), x, Y(point.ProbabilityBefore));
-                    graphics.DrawLine(curvePen, x, Y(point.ProbabilityBefore), x, Y(point.Probability));
-                    previousX = x;
-                }
-                graphics.DrawLine(curvePen, previousX, top, left + width, top);
-
-                DrawRegionLabels(graphics, min, max, left, top, width, height);
-                // Identical stored percentiles and marker geometry in both views.
-                DrawHistogramMarkers(graphics, area, min, max, left, top, width, height,
-                    markerFont, 4, rowHeight);
-                if (currentTarget.HasValue)
-                {
-                    double lowerTail = currentForecastResult.ProbabilityLessThanOrEqual(currentTarget.Value);
-                    float targetX = ValueToX(currentTarget.Value, min, max, left, width);
-                    float guideY = Y(lowerTail);
-                    using Pen guidePen = new Pen(Color.DarkOrange, 1.5f) { DashStyle = DashStyle.Dash };
-                    graphics.DrawLine(guidePen, left, guideY, targetX, guideY);
-                    using Brush dotBrush = new SolidBrush(Color.DarkOrange);
-                    graphics.FillEllipse(dotBrush, targetX - 3, guideY - 3, 6, 6);
-                    string guideLabel = $"≤ target: {lowerTail:P1}";
-                    SizeF labelSize = graphics.MeasureString(guideLabel, axisFont);
-                    float labelY = guideY - labelSize.Height - 3;
-                    if (labelY < top) labelY = guideY + 3;
-                    float labelX = Math.Clamp(targetX - labelSize.Width - 6, left + 3,
-                        Math.Max(left + 3, left + width - labelSize.Width));
-                    graphics.FillRectangle(SystemBrushes.Window, labelX, labelY, labelSize.Width, labelSize.Height);
-                    graphics.DrawString(guideLabel, axisFont, SystemBrushes.ControlText, labelX, labelY);
-                }
-                DrawXAxisLabel(graphics, min, min, max, left, width, (int)bottom + 8);
-                DrawXAxisLabel(graphics, max, min, max, left, width, (int)bottom + 8);
-            }
-            finally
-            {
-                graphics.Restore(state);
-            }
         }
 
         // Shared presentation refresh for all target, direction and forecast transitions.

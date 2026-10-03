@@ -88,6 +88,7 @@ namespace MonteCarlo.Excel
               getImage='GetRibbonImage'
               onAction='OnRunSimulation'/>
           <button id='ScenarioAnalysisButton' label='Scenario Analysis' size='large' getImage='GetRibbonImage' onAction='OnScenarioAnalysis'/>
+          <button id='OptimizerButton' label='Optimizer' size='large' getImage='GetRibbonImage' onAction='OnOptimizer'/>
           <button id='SimulationSettingsButton' label='Simulation Settings' size='large' getImage='GetRibbonImage' onAction='OnSimulationSettings'/>
 
           <button
@@ -163,6 +164,7 @@ namespace MonteCarlo.Excel
                     "CorrelationsButton" => "MonteCarlo.Excel.Icons.Correlations.png",
                     "ClearCellDefinitionButton" => "MonteCarlo.Excel.Icons.Clear Cell Defition.png",
                     "ScenarioAnalysisButton" => "MonteCarlo.Excel.Icons.Scenario Analysis.png",
+                    "OptimizerButton" => "MonteCarlo.Excel.Icons.Optimizer.png",
                     "SimulationSettingsButton" => "MonteCarlo.Excel.Icons.Simulation Settings.png",
                     "SpcAnalysisButton" => "MonteCarlo.Excel.Icons.SPC Analysis.png",
 
@@ -573,6 +575,16 @@ namespace MonteCarlo.Excel
             }
         }
 
+        public void OnOptimizer(IRibbonControl control)
+        {
+            try { OptimizerCommand.Show(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError(ex.ToString());
+                MessageBox.Show(ex.Message, "Optimizer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
         public void OnSpcAnalysis(IRibbonControl control)
         {
             try { SpcAnalysisCommand.Show(); }
@@ -726,7 +738,20 @@ namespace MonteCarlo.Excel
                 // SIMULATION SETTINGS
                 // =================================================
 
-                SimulationExecutionResult outcome = SimulationService.TryRun();
+                using var cancellation = new CancellationTokenSource();
+                using var live = new LiveRunForm("Monte Carlo — live simulation", cancellation);
+                dynamic liveApp = ExcelDnaUtil.Application;
+                bool interactive = liveApp.Interactive;
+                SimulationExecutionResult outcome;
+                live.Show();
+                try
+                {
+                    liveApp.Interactive = false;
+                    outcome = SimulationService.TryRunLive(live.Trial, cancellation.Token);
+                }
+                finally { live.Finish(); liveApp.Interactive = interactive; }
+                if (outcome.DiagnosticException is OperationCanceledException && outcome.RestorationFailures.Count == 0)
+                    return;
                 if (!outcome.Succeeded)
                 {
                     if (outcome.DiagnosticException != null)

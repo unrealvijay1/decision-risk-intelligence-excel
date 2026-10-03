@@ -45,6 +45,7 @@ namespace MonteCarlo.Excel
             var savedScenarios = CaptureScenarioBlock(configSheet);
             var savedCorrelations = CorrelationsForModelSave(configSheet);
             var savedSpc = CaptureSpcBlock(configSheet);
+            var savedOptimizer = CaptureOptimizerBlock(configSheet);
             // Validate variable-length data before clearing any existing configuration.
             var distributionData = SimulationModel.Assumptions.ToDictionary(a => a, DistributionDataPersistence.Serialize);
             // Definition saves preserve the separate workbook settings block verbatim, even if malformed.
@@ -54,6 +55,7 @@ namespace MonteCarlo.Excel
             RestoreScenarioBlock(configSheet, savedScenarios);
             WriteCorrelationBlock(configSheet, savedCorrelations);
             WriteSpcBlock(configSheet, savedSpc);
+            RestoreOptimizerBlock(configSheet, savedOptimizer);
             for (int i = 0; i < 4; i++) configSheet.Cells[1, 17 + i].Value2 = savedSettings[i];
             // Text metadata must never become worksheet formulas.
             configSheet.Range["A:D"].NumberFormat = "@";
@@ -479,6 +481,7 @@ namespace MonteCarlo.Excel
 
 
                 if (configSheet.Cells[1, 17].Value2 != null || configSheet.Cells[1, 22].Value2 != null ||
+                    ((object?[,])CaptureOptimizerBlock(configSheet)).Cast<object?>().Any(x => x != null) ||
                     ((object?[,])CaptureSpcBlock(configSheet)).Cast<object?>().Any(x => x != null))
                     SaveModel(); // Empty definition lists, retaining workbook-level settings.
                 else configSheet.Delete();

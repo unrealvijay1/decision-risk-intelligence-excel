@@ -12,8 +12,9 @@ public static class SimulationService
     }
 
     public static SimulationExecutionResult TryRun() => TryRunCore(null);
+    public static SimulationExecutionResult TryRunLive(Action<int, IReadOnlyDictionary<ForecastDefinition, double[]>> progress, CancellationToken cancellation) => TryRunCore(null, progress, cancellation);
     public static SimulationExecutionResult TryRun(int trials) => TryRunCore(new SimulationSettings(trials));
-    private static SimulationExecutionResult TryRunCore(SimulationSettings? requested)
+    private static SimulationExecutionResult TryRunCore(SimulationSettings? requested, Action<int, IReadOnlyDictionary<ForecastDefinition, double[]>>? progress = null, CancellationToken cancellation = default)
     {
         try
         {
@@ -35,7 +36,7 @@ public static class SimulationService
             }
             return SimulationExecution.Run(settings, SimulationModel.Assumptions.ToArray(),
                 SimulationModel.Forecasts.ToArray(), new ExcelSimulationWorkbook(app, workbook), validation,
-                correlations: WorkbookPersistence.LoadCorrelations((object)workbook));
+                correlations: WorkbookPersistence.LoadCorrelations((object)workbook), cancellation: cancellation, liveProgress: progress);
         }
         catch (Exception ex) { return new SimulationExecutionResult { DiagnosticException = ex }; }
     }

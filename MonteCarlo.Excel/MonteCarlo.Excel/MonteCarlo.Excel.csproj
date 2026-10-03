@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Icons\Optimizer.png" LogicalName="MonteCarlo.Excel.Icons.Optimizer.png" />
     <None Remove="Icons\assumption.png" />
     <None Remove="Icons\clear_model.png" />
     <None Remove="Icons\forecast.png" />

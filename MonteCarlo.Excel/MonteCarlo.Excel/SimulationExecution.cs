@@ -6,14 +6,14 @@ public static class SimulationExecution
 {
     public static SimulationExecutionResult Run(int trials, IReadOnlyList<AssumptionDefinition> assumptions,
         IReadOnlyList<ForecastDefinition> forecasts, ISimulationWorkbook workbook, ValidationResult? savedValidation = null,
-        Func<AssumptionDefinition, double, double>? sampleTransform = null, CancellationToken cancellation = default, IReadOnlyList<AssumptionCorrelation>? correlations = null)
+        Func<AssumptionDefinition, double, double>? sampleTransform = null, CancellationToken cancellation = default, IReadOnlyList<AssumptionCorrelation>? correlations = null, Action<int, IReadOnlyDictionary<ForecastDefinition, double[]>>? liveProgress = null)
     {
-        return Run(new SimulationSettings(trials), assumptions, forecasts, workbook, savedValidation, sampleTransform, cancellation, correlations);
+        return Run(new SimulationSettings(trials), assumptions, forecasts, workbook, savedValidation, sampleTransform, cancellation, correlations, liveProgress);
     }
 
     public static SimulationExecutionResult Run(SimulationSettings settings, IReadOnlyList<AssumptionDefinition> assumptions,
         IReadOnlyList<ForecastDefinition> forecasts, ISimulationWorkbook workbook, ValidationResult? savedValidation = null,
-        Func<AssumptionDefinition, double, double>? sampleTransform = null, CancellationToken cancellation = default, IReadOnlyList<AssumptionCorrelation>? correlations = null)
+        Func<AssumptionDefinition, double, double>? sampleTransform = null, CancellationToken cancellation = default, IReadOnlyList<AssumptionCorrelation>? correlations = null, Action<int, IReadOnlyDictionary<ForecastDefinition, double[]>>? liveProgress = null)
     {
         int trials = settings.TrialCount;
         var outcome = new SimulationExecutionResult();
@@ -126,8 +126,9 @@ public static class SimulationExecution
 
         try
         {
-            workbook.ScreenUpdating = false;
+            workbook.ScreenUpdating = liveProgress != null;
             workbook.EnableEvents = false;
+            var refresh = System.Diagnostics.Stopwatch.StartNew();
             int progressInterval = Math.Max(1, trials / 100);
             bool stop = false;
             for (int i = 0; i < trials && !stop; i++)
@@ -165,6 +166,14 @@ public static class SimulationExecution
                 }
                 if (i % progressInterval == 0 || i == trials - 1)
                     workbook.StatusBar = $"Monte Carlo Simulation: {(int)((i + 1) * 100.0 / trials)}% ({i + 1:N0}/{trials:N0})";
+                if (!stop && liveProgress != null && (i == 0 || i == trials - 1 || refresh.ElapsedMilliseconds >= 100))
+                {
+                    int completed = i + 1;
+                    // Bounded, detached preview; never consume random numbers or expose trial buffers.
+                    liveProgress(completed, forecastSamples.ToDictionary(x => x.Key, x =>
+                        Enumerable.Range(0, Math.Min(completed, 4096)).Select(j => x.Value[(int)((long)j * completed / Math.Min(completed, 4096))]).ToArray()));
+                    refresh.Restart();
+                }
             }
         }
         catch (Exception ex) { outcome.DiagnosticException = ex; }

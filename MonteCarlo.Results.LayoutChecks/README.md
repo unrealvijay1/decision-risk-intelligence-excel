@@ -11,13 +11,23 @@ Six cases cover Automatic and Fixed results at 100%, 125%, and 150% geometry sca
 - Exactly three primary tabs, Forecast default, one shared forecast selector and shared footer.
 - P50/P80 in Statistics, probability emphasis in Forecast, and sensitivity ownership/space.
 - Nonempty samples/bins, positive plot/bar dimensions, in-range marker positions.
-- Production Distribution and Cumulative paint output, with chart and marker presence checks rather than pixel-perfect snapshots.
+- Production Distribution paint output (CDF chart removed; probability calculators retained), with chart and marker presence checks rather than pixel-perfect snapshots.
 - All distribution statistics and run metadata, long seeds, label bounds and footer separation.
 - Forecast switching, direction changes, target/confidence calculator handlers and numeric marker labels.
 
 Set RESULTS_LAYOUT_PREVIEW=1 to save an optional local DrawToBitmap preview under artifacts/results-tabs-preview. Hidden native controls may not paint their text in that preview.
 
 These checks do not replace live Excel verification or actual per-monitor DPI testing. Desktop working-area limits intentionally remain in effect to expose space starvation under scaling.
+
+Optimizer adds three cases at 100%, 125% and 150% geometry scaling, covering six objective
+options, target activation, configuration save, variable/constraint grids, all result tabs,
+export/close callbacks and editor/footer bounds. Previews are written to
+`artifacts/optimizer-layout/`. Append `-- --optimizer` to run just these cases.
+Append `-- --live-optimizer` for opt-in private Excel integration: one sandbox per run,
+source formulas/values/formats/Saved preservation, fixed-seed replay, cancellation/failure,
+copy deletion, explicit apply, report export, actual disk save/reopen and tracked rename/delete.
+The synthetic source runs in a dedicated STA apartment that ends before process-exit
+assertions; all owned Excel instances must exit. Existing user instances are never used.
 
 Forecast refinement checks also verify the 34/66 two-column workspace, calculator terminology and result bounds, and exact target retention when formatted text is recalculated. Success/Miss labels are integrated into chart regions; disconnected marker leader ticks are removed.
 
@@ -56,3 +66,31 @@ from the repository root for a private Excel instance and synthetic workbook. It
 the workbook analysis service, frozen limits after extending the source, strict errors,
 text/date labels, source formulas, tracked references, native chart export, save/reopen
 and process cleanup. It never attaches to an existing Excel process.
+
+LiveRunLayoutChecks verifies simulation/optimizer progress charts at 100/125/150% scale, target lines, constant/extreme values and saves previews under artifacts/live-progress-layout. --live-optimizer also checks real source trial writes and restoration after success/cancellation/chart failure.
+
+Use -- --constraints for the new constraint editor alone; the default run also includes it.
+Checks cover typed/picked cells, cancellation, equality, tracked name retention, all legacy
+constraint types and footer bounds at 100/125/150%, including larger-font/constrained-height
+cases. Previews are under artifacts/constraint-layout.
+
+Use -- --live-cell-constraints for a separate owned Excel instance with real product-mix
+formulas. It verifies the known 80/60 optimum (profit 88,000, labor 400, material 360),
+protected unregistered formula constraints, candidate recalculation/errors, cancellation,
+restoration, explicit Apply, disk save/reopen and tracked rename/row insert/delete. User
+Excel instances are untouched. Interactive picking and actual-monitor DPI remain manual.
+The same check also runs a zero-assumption price/demand/revenue workbook: Price=100,
+Demand=500, Revenue=50,000, one forecast sample per candidate, live recalculation,
+success/cancel/preview-failure formula restoration, disk reopen and explicit Apply.
+Optimizer layouts include both detected modes, deterministic N/A trials, four value
+objectives and omission of probability constraints at 100/125/150% geometry scaling.
+They also cover the linear expression editor, candidate/trial terminology and computation estimate.
+
+Use `-- --live-iterative-optimizer` for opt-in real Excel portfolio acceptance and performance.
+It uses an owned private instance, three Normal(.08/.12/.07, SD .02) inputs, capital 10,000,
+allocation step .01, worksheet `SUM` equality and a shares-cell cap. It runs the real engine
+at 50/250/500 candidates × 1,000 trials and writes `artifacts/iterative-optimizer-benchmarks.csv`.
+The fixture uses manual calculation and no chart rendering, so timing is explicitly for
+that configuration, not arbitrary customer models. This check can take a long time because
+every trial writes three Excel cells and recalculates. It also verifies cancellation,
+failure/rejection restoration, disk reopen and Apply; it never touches user Excel instances.

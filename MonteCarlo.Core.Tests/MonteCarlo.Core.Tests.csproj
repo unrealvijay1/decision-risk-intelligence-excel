@@ -8,6 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/DecisionVariableSelection.cs" Link="Optimizer/DecisionVariableSelection.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/Optimization.cs" Link="Optimizer/Optimization.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/OptimizationFeasibleSpace.cs" Link="Optimizer/OptimizationFeasibleSpace.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/OptimizerPersistence.cs" Link="Optimizer/OptimizerPersistence.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/OptimizerExporter.cs" Link="Optimizer/OptimizerExporter.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/DistributionDataPersistence.cs" Link="Persistence/DistributionDataPersistence.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcPersistence.cs" Link="Spc/SpcPersistence.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SpcDataReader.cs" Link="Spc/SpcDataReader.cs" />
@@ -40,6 +45,7 @@
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/WorkbookPersistence.cs" Link="Persistence/WorkbookPersistence.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ExcelSimulationWorkbook.cs" Link="Persistence/ExcelSimulationWorkbook.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationService.cs" Link="Persistence/SimulationService.cs" />
+    <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/ConstraintCellSelection.cs" Link="Optimizer/ConstraintCellSelection.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationValidation.cs" Link="Simulation/SimulationValidation.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationWorkbook.cs" Link="Simulation/SimulationWorkbook.cs" />
     <Compile Include="../MonteCarlo.Excel/MonteCarlo.Excel/SimulationExecution.cs" Link="Simulation/SimulationExecution.cs" />

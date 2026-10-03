@@ -1,6 +1,6 @@
 # Monte Carlo for Excel — Project Context
 
-Last reconciled with source and tests: **2026-09-29**.
+Last reconciled with source and tests: **2026-10-03**.
 
 This is the persistent project handoff and source of truth for future Codex sessions.
 Read it before implementation. Verify relevant source before changing behavior; reconcile
@@ -35,12 +35,12 @@ Ribbon run opens a fresh modal `ResultsForm`; chart/calculator actions do not re
 ## Implemented model workflows
 
 - Ribbon groups: Model Setup (Define Assumption, Define Forecast, Correlations, Model Manager, Clear
-  Cell Definition); Simulation (Run Simulation, Scenario Analysis, Simulation Settings, Reload Model);
+  Cell Definition); Simulation (Run Simulation, Scenario Analysis, Optimizer, Simulation Settings, Reload Model);
   Process Analysis (SPC Analysis); Maintenance (Clear Model); Product (License). Export Report is in Results.
-- All 12 ribbon commands are native large buttons. Excel owns label wrapping, alignment and
+- All 13 ribbon commands are native large buttons. Excel owns label wrapping, alignment and
   narrow-window group collapse; there are no fixed-width spacers or custom panels. All existing
   command IDs, callbacks and implementations are preserved. License retains `imageMso=FileProperties`.
-- Eleven supplied PNGs in `MonteCarlo.Excel/MonteCarlo.Excel/Icons/` are embedded in the Excel
+- Twelve supplied PNGs in `MonteCarlo.Excel/MonteCarlo.Excel/Icons/` are embedded in the Excel
   assembly. `GetRibbonImage` resolves exact manifest names, clones 32×32 artwork, and fits wider
   images proportionally into a transparent 32×32 canvas without upscaling. New filenames with
   spaces use explicit `LogicalName` metadata. The supplied clear-cell filename is actually
@@ -68,8 +68,8 @@ Ribbon run opens a fresh modal `ResultsForm`; chart/calculator actions do not re
   and preserves values/formulas. Ordinary cells are an informational no-op; invalid
   selections are rejected. Lookup loads without highlighting and restores prior
   in-memory lists on cancellation/no-op. Confirmed deletion saves remaining definitions.
-- Assumption Correlations supports model-level input relationships. Classifications and
-  decision-variable management are not implemented.
+- Assumption Correlations supports model-level input relationships. Optimizer manages its own
+  controllable decision variables; general model classifications are not implemented.
 
 ## Workbook persistence and cell highlighting
 
@@ -90,6 +90,7 @@ writing configuration does not automatically save the workbook file.
 | V:W (22–23) | V1=`ScenarioDefinitionsV2`, W1=JSON chunk count; V2 onward holds 30,000-character chunks; version V1 remains readable |
 | Y:Z (25–26) | Y1=`AssumptionCorrelationsV1`, Z1=chunk count; Y2 onward holds 30,000-character JSON chunks |
 | AB:AC (28–29) | AB1=`SpcAnalysisV1`, AC1=chunk count; AB2 onward holds 30,000-character JSON chunks for SPC configuration, tracked ranges and fixed baseline statistics |
+| AD:AE (30–31) | AD1=`OptimizerV1`, AE1=chunk count; AD2 onward holds 30,000-character JSON chunks for optimizer configuration only |
 
 The legacy three-parameter/name-in-H and four-parameter/name-in-I layouts remain readable.
 Optional metadata is backward compatible. Text metadata is written as text to avoid formula
@@ -99,7 +100,7 @@ messages and Trace diagnostics; initial restore is independent of event registra
 Missing P data is valid for legacy scalar distributions. Discrete requires a valid versioned
 table; unsupported/malformed tables block execution with a row-specific correction message.
 Up to 100 rows fit in one Excel text cell. Definition saves preserve settings, scenarios,
-correlations and SPC blocks; the existing scalar columns retain their meanings.
+correlations, SPC and Optimizer blocks; the existing scalar columns retain their meanings.
 
 Hidden names track direct single-cell references through sheet renames and structural
 edits. Restore resolves current sheet/address. Broken/deleted/cross-workbook links never
@@ -116,9 +117,9 @@ alignment or protection. Legacy rows without snapshots capture their current fil
 highlighting. Formatting failures are best-effort and traced: unavailable/protected/deleted
 cells can prevent restoration, and an original fill never captured cannot be reconstructed.
 
-Definition saves preserve the separate settings, scenario and SPC blocks verbatim, even if malformed.
+Definition saves preserve the separate settings, scenario, SPC and Optimizer blocks verbatim, even if malformed.
 Clear Model restores definition fills and removes definitions, retaining
-explicitly saved simulation settings, scenarios and SPC. Without any of those blocks it deletes the config
+explicitly saved simulation settings, scenarios, SPC and Optimizer. Without any of those blocks it deletes the config
 sheet. Deleted definitions lose their saved CellLink metadata, but the current code does
 not remove the corresponding hidden workbook names; unused names can remain. Older add-in
 versions may discard newer optional metadata when saving.
@@ -260,7 +261,7 @@ unless a new request calls for redesign or live testing finds a functional regre
   target direction/value, Decision Tools, Success when selector and compact
   **Target → Probability** / **Probability → Target** calculator tabs. Each calculator
   displays its result directly; P50/P80 are not headline KPI cards.
-- Forecast right: large chart with **Distribution / Cumulative Probability** selector.
+- Forecast right: large distribution chart; the CDF chart and view selector are removed. Probability calculators remain.
   Chart mode is static session-only state retained across Results windows. Forecast
   switching refreshes all tabs; chart/calculator tab changes do not simulate.
 - Sensitivity: its own large tornado chart with existing correlation ordering.
@@ -310,12 +311,7 @@ Distribution uses 15–30 bins. Out-of-range targets retain an annotation withou
 line or expanded axis; whole-plot shading follows direction. Constant outcomes retain
 the blank histogram while empirical probability remains available.
 
-Cumulative is a cached, right-continuous empirical step CDF (0–100%) built from a sorted
-copy, grouping duplicate outcomes. Non-finite data makes the curve unavailable rather
-than silently removing samples. Constants get a padded range; finite out-of-range targets
-expand the axis. Its orange guide/dot always represents actual `P(X <= target)`, including
-when success means `X >= target`. Interpolated P50/P80 need not intersect the step curve
-at exactly 50%/80%.
+Core CDF/quantile mathematics remain available for sampling and probability calculations; Results exposes the distribution chart only.
 
 `ReportExporter` creates a uniquely named `MonteCarlo_Report_...` sheet in the active
 workbook with run information, assumption definitions, forecast statistics and sensitivity.
@@ -415,6 +411,195 @@ cell references. The top identifies baseline, question, trials and common seed; 
 scrollable forecast context lists each probability/direction or target/direction. Scenario comparison
 has no P50/P80 or generic Success/Target/Direction columns. Normal Results, Statistics
 and Sensitivity retain their existing presentation and calculations.
+
+## Monte Carlo Optimizer V1
+
+The Simulation ribbon's **Optimizer** command uses the supplied `Optimizer.png` through
+the existing embedded-resource/32×32 callback. `OptimizerCommand` pins the source workbook,
+loads detached model definitions without highlighting, and opens `OptimizerForm`.
+Configuration has Objective/Settings, Decision Variables and Constraints tabs with explicit
+Add/Edit/Delete, Save Configuration, Run, progress and cooperative Cancel controls.
+`DecisionVariableForm` is a compact dedicated editor: editable name, a read-only combined
+absolute `Worksheet!$Cell` reference with Select, informational Current Value, and Search
+Range Minimum/Maximum/Step.
+The Cancel/OK footer has its own content-sized row outside a scrollable editor body,
+so larger system fonts or constrained client heights cannot push the actions below the window.
+Select uses the existing hidden-form Excel `InputBox(Type: 8)`
+pattern, hides both editor and parent Optimizer while picking, and restores them in `finally`.
+`DecisionVariableSelection` captures exactly one source-workbook cell, reads numeric values
+through the production adapter and rejects blank/text/error/merged/array/spill/protected
+inputs before acceptance. Only the immediate left cell supplies a conservative short text
+name suggestion, and an entered name is never overwritten. Selection/cancellation performs
+no cell or metadata writes. OK reuses existing bounds/steps, duplicate and reserved-cell
+validation. Current values need not lie on the step grid. Editing resolves the existing
+tracked cell, displays its current value and stored range, and preserves its link through
+renames/moves; replacing the cell clears that link so explicit configuration Save creates
+one for the replacement. A broken reference requires reselection. Optimizer mathematics,
+candidate evaluation and restoration are unchanged by this editor.
+`OptimizerConstraintForm` defaults to Excel cell (value/formula), with editable qualified
+reference, Select, optional display name, operator and constant RHS. The existing hidden
+Excel InputBox pattern and read-only current-value/left-label suggestion are reused.
+Quoted sheet names/escaped apostrophes are supported; only source-workbook single A1 cells
+within Excel bounds are accepted. Existing variable and forecast-statistic modes remain
+selectable/editable. Blank/text/Excel errors/nonfinite, missing/deleted/external and multi-cell
+references fail with constraint name/location. Protected, array and spill numeric outputs
+are valid because constraints are read-only. Picking/cancelling writes no model cells or names;
+editing the same resolved cell retains its tracked link; replacing it creates a new link on Save.
+The footer is outside the scrollable body so scaled/constrained layouts retain OK/Cancel.
+
+Cell constraints are validated before mutation, then read afresh immediately after candidate
+decision writes and Excel recalculation, before Monte Carlo trials. They evaluate the current
+worksheet value with the original/restored assumption values, not a sampled statistic or
+last trial. For stochastic requirements, use the existing Forecast Mean/P50/Probability
+constraints. Cell/decision/linear constraints reject candidates before simulation; forecast
+Mean/P50/Probability constraints use completed trial statistics. Constraint evaluation
+never writes constraint cells; a cell may still be written by its separately configured
+Decision Variable/Assumption role under the existing engine's restore guarantees.
+
+`Optimization.cs` contains UI-independent problem/objective/variable/constraint/settings,
+candidate/result/progress/evaluation records, `IOptimizationAlgorithm`, Automatic search and
+`OptimizationService`. Candidate evaluation uses `IOptimizationCandidateEvaluator`: zero assumptions select
+`DeterministicCandidateEvaluator`; one or more select `MonteCarloCandidateEvaluator`, which calls
+the existing `SimulationExecution`, preserving normal
+simulation, correlations, scenarios, SPC and Results behavior.
+`OptimizationFeasibleSpace` owns bounded grid generation, deterministic linear repair,
+conservative worksheet-formula guides and shared progress text; search does not own sampling.
+
+Objectives retain the existing configured-Forecast workflow: maximize/minimize Mean, P50
+or inclusive target probability (≥/≤). A configured objective Forecast is required. The Optimizer
+automatically supports deterministic optimization with zero assumptions and stochastic Monte Carlo
+optimization with one or more assumptions. Deterministic candidates use one recalculation and one
+finite forecast reading: Mean/P50 (and other percentiles) equal that value, SD is zero and samples
+contain one value. No simulation engine/trial loop or fake assumption is used. Probability-specific
+objectives/constraints are rejected before mutation; the deterministic editor omits those choices,
+and result/export target probabilities are unavailable. Normal Run Simulation still requires an
+assumption; its validation is unchanged. Monte Carlo probability objectives and requirements
+use **0–100 percent**, not fractions. Optimizer constraints may reference any valid numeric
+Excel cell, including calculated/formula cells. Constraint cells are recalculated and
+evaluated for every candidate solution and do not need to be configured as Forecasts.
+Existing decision-variable and forecast Mean/P50/Probability constraints remain supported.
+The editor also accepts explicit linear decision expressions (e.g. `2*X + Y`) and numeric RHS,
+with <=, >= or =. Persisted terms use stable variable IDs and finite nonzero coefficients.
+Use unique names without expression operators in the UI; advanced callers can use stable IDs.
+Decimal and scientific-notation coefficients round-trip through expression editing.
+Generation tightens decision-variable bounds and projects linear residuals onto permitted
+grid points in at most 32 repair passes. It supports simple weighted equalities, inequalities
+and independent equalities; coupled/discrete systems are not a general integer/LP solver.
+Raw constraints referencing a decision cell or simple same-sheet A1 additions/subtractions,
+numeric coefficient products, or a whole `SUM` of direct decision cells/single-column ranges
+provide equivalent run-local linear guides. No portfolio/sum-to-one rule is hard-coded.
+Unsupported formulas, unknown inputs, nested functions, constants and indirect/external
+references stay black-box checks. Every candidate is verified against actual recalculated
+cells before simulation, even if a guide was used. Grid repair may fail to find an existing
+feasible solution for difficult systems; never imply that failed search proves infeasibility.
+All constraint kinds accept <=, >= or = against a finite numeric RHS. Inequalities retain
+exact inclusive comparisons; equality accepts abs(actual-RHS) <= 1e-9 * max(1, abs(RHS)).
+Feasible candidates outrank infeasible ones; infeasible candidates compare
+sum of positive violations normalized by `max(1, abs(requirement))`, then objective. Ties retain
+the earlier candidate. Best Feasible is separate from the diagnostic infeasible candidate.
+No feasible result shows no optimum/objective; Apply is disabled. Rejected candidates have
+no objective/distribution (history Objective is NaN, Evaluated=false); Monte Carlo never runs
+for them. Diagnostics identify failed constraints, attempts and pre-simulation rejections.
+
+Variables are finite numeric single-cell inputs on a grid anchored at Minimum with positive
+Step and Minimum < Maximum. Maximum is included only when step-aligned (floating-point
+rounding is bounded). V1 supports up to 100 variables and 10¹² steps per variable; Step must
+fit the range and produce distinguishable values. Duplicate physical cells, assumption/
+forecast overlaps, merged/array/spill cells and locked protected inputs are rejected before
+mutation. Numeric formula inputs are allowed and their exact formula content is captured.
+Decision constraints with no permitted grid point are rejected; statistical infeasibility
+is determined by candidate evaluation rather than presumed from the workbook formula.
+
+Automatic exhausts small lattices (after repair/deduplication). Larger problems initialize
+from the original point, constrained corners and diverse seeded feasible-grid attempts.
+It retains six lightweight elites using feasibility-first ranking. Most subsequent attempts
+poll the current best; some poll another elite. Coordinate radii sweep from coarse to one
+grid step, repeatedly refining around updated solutions; every eighth attempt explores
+globally. Linear repair creates compensating changes in other variables when required.
+It is derivative-free, noisy-objective compatible, seeded/reproducible and cancellable.
+Stop on the unique-candidate budget, exhausted small lattice, cancellation, error, or
+40 × budget generation attempts (duplicates/repair can exhaust the space earlier).
+This is a bounded heuristic, not a global-optimality guarantee. Defaults are
+**250 candidate evaluations, 1,000 trials, seed 12345**;
+accepted settings are 1–100,000 evaluations and, in Monte Carlo mode, 1–1,000,000 trials.
+The UI says Maximum Candidate Evaluations and explains that decisions and uncertainty are
+separate loops: 250 candidates × 1,000 trials is at most 250,000 Monte Carlo trials.
+The pre-run computational estimate updates as settings change; rejected candidates lower
+actual trial consumption. Five evaluations still means at most five combinations, not 5,000.
+The UI shows Evaluation Mode. Deterministic trials display N/A; retained trial settings are not used.
+The search seed stays editable for deterministic exploration; Monte Carlo shows trials and seed.
+Mode is detected from current definitions, not persisted; the OptimizerV1 envelope is unchanged.
+The candidate-search PRNG is separate from simulation. Every evaluation restarts the
+production Monte Carlo random stream at the same fixed seed in stochastic mode, including correlations.
+Assumptions are sampled from their configured distributions on every trial. Fixed seeds
+reuse common random draws across candidates; sampled inputs and calculated outputs vary
+within each evaluation. Structured run history stores candidate values/scores, feasibility,
+constraint actuals, rejection/evaluation flag, best-feasible-so-far, search phase and radius;
+full trial samples are retained for the best candidate only. Run results are not persisted.
+Deterministic live previews show the single calculated forecast per candidate while convergence
+continues by evaluation; ScreenUpdating is enabled for those previews and restored afterward.
+
+The interactive Optimizer runs synchronously on Excel's STA against the pinned source
+workbook, temporarily writing decision and assumption cells. Excel interaction and events
+are disabled while running; the live progress window pumps UI messages at bounded preview
+updates and supports cancellation. Every decision restoration is attempted in `finally`;
+in stochastic mode, the simulation engine independently restores assumptions, recalculates forecasts and
+restores ScreenUpdating/events/status between evaluations. Outer interaction/event settings
+restore on success, failure and cancellation. Restoration failures are reported. Source
+formulas/values restore but Excel may remain dirty; the Saved flag is not forced. Apply
+Optimal Values is the explicit action that retains optimized decisions after the run.
+No temporary workbook or worker Excel process is used by the interactive Optimizer.
+Scenario Analysis keeps its private sandbox. OptimizationService retains its sandbox factory
+for noninteractive callers/tests. An in-flight Excel COM calculation can delay cancellation.
+Workbook VBA events are suppressed, but volatile formulas, UDF side effects and external
+refreshes are outside deterministic replay/restoration guarantees.
+
+LiveRunForm displays selectable forecast histograms/frequency curves during both normal
+simulation and optimization, plus a best-objective step chart by evaluation for Optimizer.
+Targets use saved forecast values for mean/median (legacy P80 defaults use a fixed initial-evaluation P80 reference); probability objectives use a matching
+saved requested confidence (percent), never a forecast value on a percent axis. Explicit No Target has no target line. The best line follows feasibility-first
+selection; no infeasible objective is plotted as an optimum. The scrollable progress summary
+shows current candidate/objective, best feasible candidate/objective, constraint status,
+attempts, trials per candidate, feasible count, rejection count and completed MC evaluations.
+SimulationExecution's optional
+observer receives detached, evenly spaced previews of at most 4,096 completed samples per
+forecast on first/last trials and roughly every 100 ms. Previewing consumes no RNG; default
+noninteractive execution still suppresses ScreenUpdating. Interactive runs enable worksheet
+redraw, and completed trial values/formulas are visible behind the progress window. Curves
+represent empirical results, not an assumed Normal fit. Excel editing is blocked until
+restoration completes; move the progress window aside to see the worksheet cells.
+
+`OptimizerPersistence` stores the independent chunked `OptimizerV1` envelope in AD:AE.
+Cell (ID 4) and Linear (ID 5) are appended kinds; optional Operator defaults to FromDirection, preserving
+historical V1 JSON and direction semantics without migration. Linear terms are optional in
+old JSON and retained in the same envelope for new constraints. Cell constraints persist their
+source-workbook sheet/cell, friendly name, RHS/operator and hidden `_MC_Cell_` reference in
+the same envelope. Tracking follows sheet rename/row-column movement; deleted/foreign links
+become `#REF!` and never silently rebind. Normal SaveModel and Clear Model preserve even
+unreadable optimizer blocks. Decision cells
+use hidden `_MC_Cell_` workbook names; rename/move resolves current addresses, broken names
+become `#REF!` without stale fallback. Forecast objectives/constraints use existing tracked
+forecast identities; legacy forecast coordinates upgrade on optimizer save. Unknown/invalid
+envelopes block Optimizer only. Normal Excel Save is required for disk persistence.
+
+`OptimizerResultsForm` shows the best observed objective, evaluations/trials/seed/duration
+and separate Decision Variables, Constraints and Forecast Results tabs (Mean/P50/P80/SD/
+applicable target probability). **Apply Optimal Values** retains optimized decision values after temporary live-run restoration;
+it re-resolves tracked decisions, rejects changed values or formulas, validates all cells
+before writing, suppresses source events and rolls back captured contents on failure.
+Apply also recalculates and rechecks raw cell constraints; changed capacities/invalid formulas
+or an infeasible candidate trigger rollback and require rerunning Optimizer.
+Close/Cancel/Export do not apply values. `OptimizerExporter` creates a unique report worksheet
+with objective, original/optimized/change, bounds/steps, constraints/results/statistics and
+settings; strings are text, numbers remain numeric. Export failure may leave a partial new
+report, never an overwritten existing sheet. Source read-only workbooks cannot save, run live optimization or apply.
+
+Future extension points are new `IOptimizationAlgorithm` implementations and richer domain
+variable/objective records. Integer/binary/categorical types, multiple objectives/Pareto,
+sensitivity near the optimum, robust objectives and scenario-specific
+optimization are deferred. Numeric step=1 can express an integer-valued grid but V1 has no
+separate typed-variable UI. Volatile Excel functions can weaken common-random-number
+comparability; stochastic estimates need independent confirmation for important decisions.
 
 ## Process Analysis / SPC V1
 
@@ -529,7 +714,7 @@ remain release work; generated x86 packaging does not establish live x86 support
 
 ## Verification and working constraints
 
-Current suite: **691 xUnit cases** (baseline 582; 109 additional distribution cases),
+Current suite: **899 xUnit cases** (including 36 constraint-aware iterative-search regressions),
 zero failures/skips in Debug and Release; full solution builds and x86/x64 packed-XLL
 generation passed in both configurations. Require both configurations for changes to
 execution/persistence. The Windows harness passes six existing Results cases and six
@@ -548,10 +733,12 @@ control overlap, multi-rule details, both chart paint paths, footer bounds and r
 baselines/zones, strict same-side rules, episode deduplication, rejected gaps/edge cases,
 target independence, multi-rule export tables and legacy/five-rule persistence. Debug and
 Release layouts and rendered previews were checked; private Excel SPC and Scenario checks
-passed, including owned process exit. Current distribution packages are in
-`artifacts/distributions-debug/` and `artifacts/distributions-release/`.
-All four XLLs were extracted and verified: correct x86/x64 PE headers, all 11 PNG hashes,
-transparent 32×32 image callback results, five ordered groups and unchanged 12 callback mappings;
+passed, including owned process exit. Current optimizer packages are in
+`artifacts/iterative-optimizer-debug/` and `artifacts/iterative-optimizer-release/` (the previous Release
+x64 XLL can remain loaded; do not overwrite it or close Excel merely to build).
+All four XLLs were extracted and verified: correct x86/x64 PE headers, all 12 PNG hashes,
+transparent 32×32 image callback results, five ordered groups and 13 callback mappings
+(the previous 12 unchanged, plus Optimizer);
 packed Core/Excel SHA-256 hashes match their final compiled assemblies.
 A private Excel instance previously accepted the ribbon Release x64 XLL. Native ribbon interaction, narrow-window
 collapse and actual 100/125/150% Windows DPI rendering remain manual checks; no approved mockup
@@ -607,6 +794,63 @@ reference moves/deletions, clear/redefine, seeded replay and Export followed by 
 updates. UI verification must include actual display scaling, both charts, close/edge
 markers, constant/out-of-range cases, both calculators/directions and native control text.
 Automated checks do not establish completion of these live checks.
+
+Optimizer engine/persistence tests cover all objective directions, inclusive probability/statistic/
+decision constraints, known single/multiple/interior optima, bounds/steps, feasible-first
+ranking, per-candidate common streams, seed replay, cancellation (including the last
+evaluation), source apply validation/rollback, restoration failures, report data and tracked
+configuration save/reopen/move/delete/legacy upgrade. Debug and Release full layout harnesses
+pass at 100/125/150% geometry scaling, including three optimizer cases and rendered result
+previews under `artifacts/optimizer-layout/`. `-- --optimizer` runs only optimizer layouts;
+`-- --live-optimizer` runs synthetic private Excel source/sandbox integration checks for
+source formulas/value/format/Saved preservation for sandbox callers, one sandbox per run, success/replay/cancel/
+failure, temporary-file cleanup, explicit apply, report export and disk save/reopen with
+tracked rename/delete and owned process exit. It also verifies actual source trial values, forecast recalculation and restoration after success/cancellation/chart failure using the production COM adapter. LiveRunLayoutChecks renders both progress charts at 100/125/150% including constant/extreme samples. The synthetic source fixture runs in its own
+STA apartment, which ends before process-exit assertions. Actual-monitor DPI, interactive ribbon/range editing, loaded x86
+Excel and arbitrary customer models remain manual checks.
+The decision-variable editor adds 26 selection cases (absolute coordinates/current values,
+left-label suggestion/name retention, invalid/unsafe/foreign/multiple cells, cancellation
+and no configuration writes). Native form checks also cover new/edit, off-grid current
+values, picker cancellation, name suggestion and tracked link retention after rename.
+Decision-variable previews are under `artifacts/optimizer-layout/`. Interactive Excel
+InputBox picking/cancellation, workbook switching and actual display DPI remain manual checks.
+
+`-- --constraints` exercises the dedicated constraint editor at 100/125/150% with typed/picked
+cells, cancellation, equality, name/link retention, legacy kinds and resized/larger-font footer
+checks. Previews are under `artifacts/constraint-layout/`; it is also part of the full layout run.
+`-- --live-cell-constraints` uses an owned private Excel STA and real product-mix formulas:
+Qty A=80, Qty B=60 gives profit=88,000, labor=400 and material=360. Only profit is a Forecast;
+protected formula constraints stay read-only. Success/cancel/chart failure and candidate
+formula errors preserve input/output formulas; Apply, disk save/reopen and named-reference
+rename/row insertion/deletion pass with owned process exit. The 44 unit cases include legacy
+V1 JSON with missing optional fields, equality tolerance, invalid references/values/Excel
+errors, recalculation, mixed constraint kinds, Apply rollback and persistence. Interactive
+Excel picking/workbook switching, live x86 and actual-monitor DPI remain manual checks.
+The same private Excel check runs a zero-assumption price/demand/revenue workbook and finds
+Price=100, Demand=500, Revenue=50,000; single-sample live updates, success/cancel/preview-failure
+formula restoration, disk reopen and Apply pass. The 23 deterministic-mode regressions cover
+single/multiple variables, maximize/minimize Mean/P50, constraints, probability rejection,
+restoration/cancellation/Apply, persistence and unchanged normal simulation validation.
+Optimizer layout checks cover both modes, deterministic probability-option omission,
+linear-expression editing, candidate/trial help, computational estimates and progress counters.
+`-- --live-iterative-optimizer` uses an owned private Excel workbook with three Normal returns
+(means .08/.12/.07, SD .02), capital 10,000 and three allocation decisions on a .01 grid.
+Worksheet SUM equality and shares-cell cap guide generation. Unit acceptance at 250 × 1,000
+finds 0/1/0 (mean near 1,200) and .4/.6/0 (near 1,040); the seeded deterministic interior fixture
+finds 37/83 with objective zero. Tests verify CRN across all three underlying return draws,
+pre-simulation rejection, weighted/independent equalities, strict inequalities, tolerance,
+grid/bounds, elite/global/refinement history, no-feasible diagnostics and linear persistence.
+Real Excel acceptance finds the same allocations: uncapped mean 1,199.957 and capped mean
+1,041.920 (seed42, 1,000 trials). Benchmark source restoration, cancellation, preview failure,
+five pre-simulation rejections with zero MC runs, disk save/reopen, Apply and owned process
+exit pass without touching customer instances.
+The live harness also measures 50/250/500 × 1,000 against the production Excel COM adapter
+with manual calculation and no rendering overhead, recording CSV in
+`artifacts/iterative-optimizer-benchmarks.csv`. Excel access/recalculation dominates runtime;
+timings depend on workbook, machine and calculation mode. Customer live rendering can cost more.
+Current-candidate notification precedes simulation and remains visible alongside a labelled
+partial-sample objective preview during trial updates. Preview failure/cancellation follows
+the same restoration boundary and consumes no search/sampling RNG.
 
 `-- --live-distributions` uses a synthetic .xlsx and private Excel STA instance: all eight
 new families save/reopen from disk, independent fixed-seed runs replay, mixed
