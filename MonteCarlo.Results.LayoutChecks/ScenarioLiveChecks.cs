@@ -10,6 +10,23 @@ internal static class ScenarioLiveChecks
     private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
     public static void Run()
     {
+        int[] processes = []; Exception? failure = null;
+        // Dynamic COM proxies must leave their STA before checking process exit,
+        // matching the optimizer/distribution fixtures' ownership boundary.
+        var worker = new Thread(() => { try { processes = RunPrivate(); } catch (Exception ex) { failure = ex; } });
+        worker.SetApartmentState(ApartmentState.STA); worker.Start(); worker.Join();
+        if (failure != null) throw new InvalidOperationException("Private Excel scenario check failed.", failure);
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        foreach (int pid in processes)
+        {
+            try { using var process = Process.GetProcessById(pid); if (!process.WaitForExit(10000)) throw new Exception($"Owned Excel process {pid} did not exit."); }
+            catch (ArgumentException) { }
+        }
+        Console.WriteLine("LIVE SCENARIO PASS: all owned Excel processes exited; existing Excel processes were not used.");
+    }
+
+    private static int[] RunPrivate()
+    {
         var existing = Process.GetProcessesByName("EXCEL").Select(p => p.Id).ToHashSet();
         var owned = new List<object>();
         var processes = new HashSet<int>();
@@ -89,11 +106,6 @@ internal static class ScenarioLiveChecks
                 finally { for (int i = owned.Count - 1; i >= 0; i--) if (Marshal.IsComObject(owned[i])) Marshal.ReleaseComObject(owned[i]); }
             }
         }
-        foreach (int pid in processes)
-        {
-            try { using var process = Process.GetProcessById(pid); if (!process.WaitForExit(5000)) throw new Exception($"Owned Excel process {pid} did not exit."); }
-            catch (ArgumentException) { } // Already exited.
-        }
-        Console.WriteLine("LIVE SCENARIO PASS: all owned Excel processes exited; existing Excel processes were not used.");
+        return processes.ToArray();
     }
 }

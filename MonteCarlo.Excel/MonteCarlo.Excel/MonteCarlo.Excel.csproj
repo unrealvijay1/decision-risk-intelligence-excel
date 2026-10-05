@@ -1,10 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
 	<TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- Application/model helpers are not worksheet exports. Ribbon discovery is independent. -->
+    <ExcelAddInExplicitExports>true</ExcelAddInExplicitExports>
+    <ExcelAddInUseVersionAsOutputVersion>true</ExcelAddInUseVersionAsOutputVersion>
+    <Product>Monte Carlo for Excel</Product>
+    <Company>Vijay</Company>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,7 +25,6 @@
     <None Remove="Icons\Scenario Analysis.png" />
     <None Remove="Icons\Simulation Settings.png" />
     <None Remove="Icons\SPC Analysis.png" />
-    <None Remove="Licensing\public-key.pem" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,12 +39,18 @@
     <EmbeddedResource Include="Icons\Scenario Analysis.png" LogicalName="MonteCarlo.Excel.Icons.Scenario Analysis.png" />
     <EmbeddedResource Include="Icons\Simulation Settings.png" LogicalName="MonteCarlo.Excel.Icons.Simulation Settings.png" />
     <EmbeddedResource Include="Icons\SPC Analysis.png" LogicalName="MonteCarlo.Excel.Icons.SPC Analysis.png" />
-    <EmbeddedResource Include="Licensing\public-key.pem" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ExcelDna.AddIn" Version="1.9.0" />
-    <PackageReference Include="Microsoft.Office.Interop.Excel" Version="16.0.18925.20022" />
+    <!-- Embed the used COM interfaces/delegates; .NET does not resolve Office PIAs
+         from the .NET Framework GAC on a clean Excel startup. -->
+    <PackageReference Include="Microsoft.Office.Interop.Excel" Version="16.0.18925.20022" ExcludeAssets="compile;runtime" />
+    <Reference Include="Microsoft.Office.Interop.Excel">
+      <HintPath>$(NuGetPackageRoot)microsoft.office.interop.excel/16.0.18925.20022/lib/netstandard2.0/Microsoft.Office.Interop.Excel.dll</HintPath>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

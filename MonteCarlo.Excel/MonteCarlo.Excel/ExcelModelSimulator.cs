@@ -28,7 +28,7 @@ namespace MonteCarlo.Excel
                     Distribution = DistributionType.Pert, Parameter1 = 5000, Parameter2 = 6000, Parameter3 = 8000 }
             };
             var forecast = new ForecastDefinition { SheetName = worksheet.Name, CellAddress = "B5" };
-            var workbook = new ExcelSimulationWorkbook(excelApp, worksheet.Parent,
+            var workbook = new ExcelSimulationWorkbook((object)excelApp, (object)worksheet.Parent,
                 () => worksheet.Range["B5"].Calculate());
             var outcome = SimulationExecution.Run(trials, assumptions, new[] { forecast }, workbook);
             if (!outcome.Succeeded) throw new SimulationRunException(outcome);

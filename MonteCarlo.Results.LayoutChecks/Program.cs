@@ -9,6 +9,7 @@ internal static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (args.Contains("--about")) { AboutTelivuLayoutChecks.Run(); return; }
         if (args.Contains("--live-iterative-optimizer")) { IterativeOptimizerLiveChecks.Run(); return; }
         if (args.Contains("--live-cell-constraints")) { CellConstraintLiveChecks.Run(); return; }
         if (args.Contains("--constraints")) { ConstraintLayoutChecks.Run(); return; }
@@ -20,6 +21,7 @@ internal static class Program
         if (args.Contains("--live-spc")) { SpcLiveChecks.Run(); return; }
         if (args.Contains("--live-optimizer")) { OptimizerLiveChecks.Run(); return; }
         if (args.Contains("--optimizer")) { OptimizerLayoutChecks.Run(); return; }
+        AboutTelivuLayoutChecks.Run();
         LiveRunLayoutChecks.Run();
         ConstraintLayoutChecks.Run();
         OptimizerLayoutChecks.Run();

@@ -1,6 +1,5 @@
 using ExcelDna.Integration;
 using MonteCarlo.Core;
-using MonteCarlo.Excel.Licensing;
 
 namespace MonteCarlo.Excel;
 
@@ -8,7 +7,6 @@ internal static class SpcAnalysisCommand
 {
     public static void Show()
     {
-        LicenseService.EnsureAccess();
         dynamic app = ExcelDnaUtil.Application;
         object workbook = app.ActiveWorkbook ?? throw new ArgumentException("Open a workbook containing your observations first.");
         var saved = WorkbookPersistence.LoadSpcAnalysis(workbook);

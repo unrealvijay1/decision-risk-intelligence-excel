@@ -9,7 +9,6 @@ using System.Windows.Forms;
 using ExcelDna.Integration;
 using ExcelDna.Integration.CustomUI;
 
-using MonteCarlo.Excel.Licensing;
 
 namespace MonteCarlo.Excel
 {
@@ -29,7 +28,7 @@ namespace MonteCarlo.Excel
     <tabs>
 
       <tab id='MonteCarloTab'
-           label='Monte Carlo'>
+           label='Telivu'>
 
         <group id='ModelSetupGroup'
                label='Model Setup'>
@@ -123,17 +122,17 @@ namespace MonteCarlo.Excel
         </group>
 
 
-        <group id='ProductGroup'
-               label='Product'>
+        <group id='HelpGroup'
+               label='Help'>
 
           <button
-              id='LicenseButton'
-              label='License'
-              screentip='View license information'
-              supertip='View your Monte Carlo license type, activation status and expiry information.'
+              id='AboutTelivuButton'
+              label='About Telivu'
+              screentip='About Telivu'
+              supertip='View the product version, website and contribution links.'
               size='large'
               imageMso='FileProperties'
-              onAction='OnLicense'/>
+              onAction='OnAboutTelivu'/>
 
         </group>
 
@@ -549,7 +548,6 @@ namespace MonteCarlo.Excel
         {
             try
             {
-                LicenseService.EnsureAccess();
                 dynamic app = ExcelDnaUtil.Application;
                 object workbook = app.ActiveWorkbook ?? throw new InvalidOperationException("Open your model workbook first.");
                 WorkbookPersistence.LoadModelForSimulation(restoreHighlights: false);
@@ -592,7 +590,7 @@ namespace MonteCarlo.Excel
             catch (Exception ex)
             {
                 System.Diagnostics.Trace.TraceError(ex.ToString());
-                MessageBox.Show("SPC Analysis could not open. Check your license and that the workbook is available.", "SPC Analysis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("SPC Analysis could not open. Check that the workbook is available.", "SPC Analysis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -673,16 +671,16 @@ namespace MonteCarlo.Excel
 
 
         // =========================================================
-        // LICENSE
+        // ABOUT TELIVU
         // =========================================================
 
-        public void OnLicense(
+        public void OnAboutTelivu(
             IRibbonControl control)
         {
             try
             {
-                using LicenseForm form =
-                    new LicenseForm();
+                using AboutTelivuForm form =
+                    new AboutTelivuForm();
 
 
                 form.ShowDialog();
@@ -704,36 +702,6 @@ namespace MonteCarlo.Excel
         {
             try
             {
-                // =================================================
-                // LICENSE CHECK
-                // =================================================
-
-                LicenseInfo license =
-                    LicenseService.GetCurrentLicense();
-
-
-                if (!license.IsValid)
-                {
-                    MessageBox.Show(
-                        "Your Monte Carlo license is not active.\n\n" +
-                        "Please activate or renew your license " +
-                        "to run simulations.",
-                        "Monte Carlo License",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-
-
-                    using LicenseForm licenseForm =
-                        new LicenseForm();
-
-
-                    licenseForm.ShowDialog();
-
-
-                    return;
-                }
-
-
                 // =================================================
                 // SIMULATION SETTINGS
                 // =================================================

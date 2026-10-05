@@ -1,0 +1,25 @@
+Telivu — Decision Intelligence for Excel
+
+Download → Install → Open Excel → Use Telivu. No account, email, key or activation step.
+The same product functionality is available to everyone.
+
+Setup chooses the add-in matching Excel architecture, not Windows. Close Excel before
+installing, repairing or uninstalling. Setup never closes your workbooks. Open Excel
+after setup: the Telivu ribbon loads automatically. If detection needs help, select
+the EXCEL.EXE from your Office installation.
+
+The matching .NET 10 Desktop Runtime is included. Installing a missing runtime may
+require administrator approval; the add-in itself installs for your user.
+
+Use Telivu → Help → About Telivu for the actual version, website, GitHub and issue links.
+The legal open-source license is awaiting owner approval; no Apache license is applied.
+
+Your workbooks, models and settings stay in your workbook files. Setup does not modify
+or delete them. Existing diagnostic configuration and logs are preserved:
+  %LOCALAPPDATA%\MonteCarlo\Logs
+Old application state outside the installation folder is ignored and left untouched.
+Normal production logging does not open an Excel-DNA diagnostic window.
+
+Run the same Setup EXE to repair/reinstall. Uninstall through Windows Installed apps.
+Uninstall removes only the owned Excel loading entry and application binaries; logs
+and diagnostic configuration remain. Website: https://unrealvijay1.github.io/telivu/

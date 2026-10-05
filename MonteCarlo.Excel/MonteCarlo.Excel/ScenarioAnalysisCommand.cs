@@ -1,6 +1,5 @@
 using ExcelDna.Integration;
 using MonteCarlo.Core;
-using MonteCarlo.Excel.Licensing;
 
 namespace MonteCarlo.Excel;
 
@@ -8,7 +7,6 @@ internal static class ScenarioAnalysisCommand
 {
     public static void Show()
     {
-        LicenseService.EnsureAccess();
         dynamic app = ExcelDnaUtil.Application;
         object source = app.ActiveWorkbook ?? throw new InvalidOperationException("Open your model workbook first.");
         var originalInputs = SimulationModel.Assumptions.ToArray();

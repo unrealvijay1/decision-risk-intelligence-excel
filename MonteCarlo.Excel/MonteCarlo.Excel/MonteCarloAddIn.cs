@@ -54,6 +54,7 @@ namespace MonteCarlo.Excel
 
             excelApp = null;
             WorkbookPersistence.ReportRestoreProblem = null;
+            AddInDiagnostics.Shutdown();
         }
 
 

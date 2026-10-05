@@ -1,13 +1,12 @@
 using ExcelDna.Integration;
 using MonteCarlo.Core;
-using MonteCarlo.Excel.Licensing;
 namespace MonteCarlo.Excel;
 
 internal static class OptimizerCommand
 {
     public static void Show()
     {
-        LicenseService.EnsureAccess(); dynamic app = ExcelDnaUtil.Application;
+        dynamic app = ExcelDnaUtil.Application;
         object source = app.ActiveWorkbook ?? throw new InvalidOperationException("Open your model workbook first.");
         var oldInputs = SimulationModel.Assumptions.ToArray(); var oldOutputs = SimulationModel.Forecasts.ToArray();
         AssumptionDefinition[] inputs; ForecastDefinition[] outputs;

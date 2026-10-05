@@ -372,3 +372,8 @@ FodyWeavers.xsd
 
 # Never commit generated customer licenses
 **/Licenses/
+# Production installer outputs (reproducible from verified sources)
+dist/
+# Private website implementation/publication notes are not source distributions.
+site/IMPLEMENTATION_REPORT.md
+site/scripts/prepare-publication.py

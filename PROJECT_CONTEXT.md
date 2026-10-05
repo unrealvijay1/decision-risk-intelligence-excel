@@ -1,6 +1,6 @@
 # Monte Carlo for Excel — Project Context
 
-Last reconciled with source and tests: **2026-10-03**.
+Last reconciled with source and tests: **2026-10-06**.
 
 This is the persistent project handoff and source of truth for future Codex sessions.
 Read it before implementation. Verify relevant source before changing behavior; reconcile
@@ -14,14 +14,56 @@ capabilities, not a change log, temporary debugging details or build transcripts
 Windows Excel add-in using C#/.NET 10, Excel-DNA 1.9 and WinForms/GDI+.
 Primary customer platform is **64-bit Excel**; builds also produce an x86 XLL.
 
+### Excel-DNA exports and diagnostics
+
+`ExcelAddInExplicitExports=true` generates `ExternalLibrary ExplicitExports="true"`.
+Only the eight attributed `MC.*` worksheet functions and `MC_RUN_PROJECTMODEL` command
+are registered; `IExcelAddIn` and ribbon discovery still work independently, with 12 analysis callbacks and About Telivu. Model helpers are not UDFs. Without explicit exports,
+`SimulationSettings.TryParse` reaches Excel-DNA's delegate-signature generation for its
+enum/model/out parameters and throws “A non-collectible assembly may not reference a
+collectible assembly” in Reflection.Emit. The live fixture reproduces that old path and
+verifies explicit mode skips it before delegate generation.
+
+`AddInDiagnostics` configures the add-in's initialized Excel-DNA TraceSource on module
+first use, before AutoOpen: Warning in production, no LogDisplayTraceListener, default
+debugger listener retained, auto-flushed file listener also attached to application Trace.
+Logs are `%LOCALAPPDATA%\MonteCarlo\Logs\ExcelDna-YYYYMMDD-PID.log` (UTC date, no automatic
+retention). Genuine initialization/application errors remain logged; only diagnostic I/O
+failure falls back to Trace/debugger output. AutoClose removes the application listener;
+Excel-DNA owns final source closure. This uses the pinned 1.9 internal TraceSource accessor;
+repeat startup checks on upgrades. Native/runtime failures before managed bootstrap remain
+outside this boundary and require loader diagnostics.
+
+.NET 10 does not consume Excel-DNA's legacy `system.diagnostics` XML. `App.config` instead
+contains our `monteCarloDiagnostics verbose="false"` setting, read explicitly from
+`<loaded XLL filename>.config`. Set verbose=true there or launch Excel with
+`MONTECARLO_DIAGNOSTICS_VERBOSE=1` for verbose file logging; neither enables popups.
+Missing sidecars retain quiet production defaults. Both x86/x64 packages embed CONFIG and
+ship matching `.xll.config` sidecars; the installer preserves the installed XLL/sidecar
+name pair. Excel COM types are embedded from the existing pinned PIA package, avoiding a
+clean-start `office.dll` dependency failure; no external PIA is packed. Calculation and
+workbook persistence semantics are unchanged.
+
+`MonteCarlo.Excel.StartupChecks/` is a separate developer fixture, never customer-packaged.
+Its runner uses RegisterXLL in an owned clean Excel process, without changing persistent
+AddIns/OPEN settings. Real packed Release x64 and isolated installer-deployed x64 verification
+pass all eight functions, legacy calculator/restoration, ribbon connection, Results and
+Scenario/Optimizer/Correlations/SPC/About Telivu dialogs, simulation, disk save/reopen and synthetic error logging without a popup or
+SimulationSettings warning. Debug live checks passed before the final embedded-COM
+adjustment; final Debug packaging and full unit/layout checks pass. Fresh-profile Release/installer startup passed; verbose logging remains an optional diagnostic check. The runner unregisters the production XLL and releases
+COM references; retained private processes require a guarded cleanup using captured PID/
+start time and exclusion of all pre-existing processes. It records that fallback explicitly;
+this does not certify graceful COM shutdown. Do not close customer Excel instances. Live x86,
+normal startup through persistent OPEN registration on a clean machine and actual monitor
+DPI remain manual. See the fixture README for commands and logging configuration.
+
 | Location (relative to repository root) | Responsibility |
 | --- | --- |
 | `MonteCarlo.Core/` | Sampling, fitting/preview, probability/CDF, chart helpers, scenario rules and independent SPC/XmR mathematics; `net10.0` |
-| `MonteCarlo.Excel/MonteCarlo.Excel/` | Ribbon, model/UI, Excel COM adapters, persistence, execution, reporting and licensing; `net10.0-windows` |
+| `MonteCarlo.Excel/MonteCarlo.Excel/` | Ribbon, model/UI, Excel COM adapters, persistence, execution, reporting and About Telivu; `net10.0-windows` |
 | `MonteCarlo.Excel/MonteCarlo.Excel.slnx` | Main solution |
 | `MonteCarlo.Core.Tests/` | xUnit; links production non-UI Excel source against workbook doubles |
 | `MonteCarlo.Results.LayoutChecks/` | Separate Windows-only hidden WinForms layout/rendering harness |
-| `MonteCarlo.LicenseGenerator/` | Developer-only offline license signing utility |
 | `Installer/MonteCarloForExcel.iss` | Per-user Inno Setup installer |
 
 `SimulationModel` holds static in-memory assumption/forecast lists for the active workbook.
@@ -36,10 +78,10 @@ Ribbon run opens a fresh modal `ResultsForm`; chart/calculator actions do not re
 
 - Ribbon groups: Model Setup (Define Assumption, Define Forecast, Correlations, Model Manager, Clear
   Cell Definition); Simulation (Run Simulation, Scenario Analysis, Optimizer, Simulation Settings, Reload Model);
-  Process Analysis (SPC Analysis); Maintenance (Clear Model); Product (License). Export Report is in Results.
+  Process Analysis (SPC Analysis); Maintenance (Clear Model); Help (About Telivu). Export Report is in Results.
 - All 13 ribbon commands are native large buttons. Excel owns label wrapping, alignment and
   narrow-window group collapse; there are no fixed-width spacers or custom panels. All existing
-  command IDs, callbacks and implementations are preserved. License retains `imageMso=FileProperties`.
+  analysis command IDs, callbacks and implementations are preserved. The former Product/License control is replaced with Help/About Telivu (`OnAboutTelivu`), retaining the built-in `imageMso=FileProperties` icon. The ribbon tab is labeled Telivu; application assembly/workbook/installer identifiers remain unchanged.
 - Twelve supplied PNGs in `MonteCarlo.Excel/MonteCarlo.Excel/Icons/` are embedded in the Excel
   assembly. `GetRibbonImage` resolves exact manifest names, clones 32×32 artwork, and fits wider
   images proportionally into a transparent 32×32 canvas without upscaling. New filenames with
@@ -165,7 +207,8 @@ to Formula. During trials, inputs are sampled, Excel recalculates and forecasts 
 EnableEvents and StatusBar, retrying each failed operation once. Persistent restoration
 failures prevent success and identify what needs checking before saving. Excel closing
 or permanently refusing writes cannot be recovered reliably. Errors use structured
-outcomes/user messages and `System.Diagnostics.Trace`; no durable logging store exists.
+outcomes/user messages and `System.Diagnostics.Trace`, captured by the production add-in
+diagnostic file listener described above.
 The legacy `MC_RUN_PROJECTMODEL` command shares this boundary while retaining fixed PERT
 inputs and output-cell-only recalculation.
 
@@ -681,40 +724,78 @@ observation and include four zone columns (S:V). Native charts do not
 reproduce that background shading. Export failure can leave a partial new report, never an
 overwritten source/report sheet.
 
-## Licensing and distribution decisions
+## Telivu Distribution Model
 
-Phase 1 intentionally uses offline licensing: a 30-day trial and RSA-signed Professional/
-Enterprise licenses in `MC1.<base64url-payload>.<base64url-signature>` form. `LicenseService`
-coordinates access/storage, `LocalLicenseValidator` verifies signatures, and `TrialService`
-owns trial state. DevelopmentMode is currently **false**; retain this for customer testing/
-distribution. Codes are case-sensitive; activation uses normal casing and trims only outer
-whitespace.
+Telivu is a free and open-source Excel decision-intelligence toolkit as the permanent strategy. The current development application has no paid edition, separate Enterprise edition, subscription, product activation, key, trial, expiry or paid feature gate. Individuals and organizations use the same product. Voluntary donations/sponsorship can fund development; optional training, consulting, implementation or support services must not restrict the core product. No donation provider is configured and no payment/support button is published.
 
-Trial state is DPAPI CurrentUser-protected in a local file and Registry, with start/last-run
-dates, trial ID, rollback checks and conservative reconciliation. Deleting one copy does
-not restart the trial. Deactivation removes the paid license without resetting the original
-trial. Ordinary uninstall/reinstall must retain state. Offline protection is not tamper-proof
-against a determined local user.
+The legal open-source license is **not yet approved/applied**. `OPEN_SOURCE_LICENSE_AUDIT.md` inventories all 17 restored NuGet packages, platform/runtime/compiler components and artwork. Apache-2.0 is preferred, but the pinned Office interop package declares no license and supplied icon/brand ownership is unresolved. Confirm those terms and contributor rights before owner approval; do not claim Apache permission. The application source repository is already public: `https://github.com/unrealvijay1/decision-risk-intelligence-excel`, develop. The separate `telivu` repository contains the public website and existing release distribution.
 
-Only the public key is embedded in the add-in. The LicenseGenerator, private signing key
-and generated customer licenses are developer-only and must never be distributed or
-committed. `.gitignore` excludes `**/Keys/`, `**/private-key.pem`, `**/Licenses/`. Keep signing
-key backups outside the repository; Excel must never reference the generator/private key.
+Product activation architecture was removed rather than bypassed: no LicenseService/validator/trial/storage/info/forms/public verification key or generator project remains. Simulation, Scenario, Optimizer, SPC and Correlations have no entitlement check; genuine model/safety/performance validation is retained. Help/About Telivu replaces the licensing area, shows the actual assembly version and links to the website, application GitHub and issues. It displays pending legal license approval and omits donation controls. Old `%LOCALAPPDATA%\MonteCarloExcel` activation files and HKCU `Software\MonteCarloExcel\TrialState` are ignored and left untouched. Retain ignored private-key/customer-license exclusions as defense against publishing legacy secrets; do not delete backups or rewrite history.
 
-Installer version is **0.1.0**, publisher Vijay. Inno Setup installs the packed x64 Release
-XLL as `MonteCarloForExcel.xll` under LocalAppData/Programs, without admin rights or a desktop
-shortcut. Preserve its stable AppId across upgrades. Excel registration uses HKCU
-Office/16.0/Excel/Options: reuse our entry or find a free OPEN/OPENn value, never overwrite
-another add-in; uninstall verifies ownership before deletion. Installer paths currently
-assume `C:\montecarlo`.
+## Telivu public website and download
 
-Distribute the packed Release XLL, not an unpacked XLL alone, symbols, signing assets or
-development files. Customer installation/upgrade/clean-machine validation and code signing
-remain release work; generated x86 packaging does not establish live x86 support.
+`site/` is the complete static public website: product/features/screenshots/use cases, installation, module reference, model recipes, tutorials, release notes, privacy, legal status and contributions. No placeholders, paid plans, analytics, backend or external fonts. Hero/README communicate Free/Open Source/No Subscription/No Activation, with an explicit **old-public-installer exception**, authorized by the owner until a future release. Development code is unrestricted, but the existing public 0.2.1 binary still has its historical trial/activation. Keep that disclosure until a new release is separately authorized. No release is created or modified in this task.
+
+Public website checkout: `artifacts/telivu-publish/`, main, origin `https://github.com/unrealvijay1/telivu.git`; live `https://unrealvijay1.github.io/telivu/`. Publish website files only, never application history/keys/private reports/binaries. `.github/workflows/pages.yml` builds the allowlisted `site/_build`. Website links point to the existing application source; release/download links remain in telivu. Website-only CONTRIBUTING covers Python/Node QA; root CONTRIBUTING covers .NET/Excel development.
+
+The download implementation is preserved exactly: shared `[data-download]` handler and HTTPS config validation in `site/js/site.js`, enabled asset URL in `site/site-config.js`, no dynamic release API. URL `https://github.com/unrealvijay1/telivu/releases/download/v0.2.1/TelivuForExcel-Setup-0.2.1.exe`; asset 117,427,571 bytes, SHA-256 `7ea29b75f44f4f64181a4c1c062ef6d575eddee004512d6a97194a48d1cf480d`, unsigned prerelease. All buttons use the same original asset; release history, naming, redirects and workflows are untouched. Local activation-free Setup is distinct from that immutable public download.
+
+## Installer and distribution architecture
+
+The installer keeps its working deployment architecture and has no activation step. CustomerGuide instructs Download → Install → Open Excel → Use Telivu. Packed-assembly checks now reject obsolete activation types/key resources and require About Telivu. The 23 RSA/DPAPI-only fixture checks were removed; four regression contracts protect absence of activation/runtime state access, functional ribbon commands, solution/resources and installer invariants. Lifecycle sentinels remain to verify legacy user state is untouched.
+
+Product version is **0.2.1**, authoritative in `Directory.Build.props`; assemblies and packed
+XLLs use file/assembly version 0.2.1.0 and product version 0.2.1. Excel-DNA copies managed
+version metadata with `ExcelAddInUseVersionAsOutputVersion=true`. Publisher remains Vijay.
+The existing Inno installer keeps AppId `{9B4D8E57-7B33-4C68-9D1D-91D5E4D8F001}` and the
+per-user LocalAppData/Programs location, preserving HKCU registration ownership and upgrades.
+Setup discovers EXCEL.EXE through App Paths/Office roots in both registry views and reads
+its actual PE machine, never using Windows bitness to choose x86/x64. Missing/conflicting
+detection requires selection or silent `/EXCELPATH`; unsupported native ARM64 is rejected.
+Excel file version selects HKCU Office/<major>.0/Excel/Options. Setup installs only the
+matching packed Release XLL as `MonteCarloForExcel.xll` plus its matching sidecar and guide.
+
+Registration preserves `/R "<XLL>"` OPEN/OPENn. Checked registration happens in PrepareToInstall;
+write/deletion snapshots restore ownership on failure/cancel before installation completes.
+It removes exact owned duplicates/old paths, migrates legacy 0.1.0 ownership using the stable
+AppId InstallLocation, and preserves other add-ins/replaced slots. A path migration carries
+the logging configuration and removes the obsolete owned XLL. Uninstall removes only exact
+installed-path entries and owned metadata. WMI process checks block installation/uninstall
+while any Excel runs and fail closed if unavailable; no customer processes are terminated.
+
+The installer never reads or deletes old activation state, workbooks or logs. Logging sidecars install only if missing and remain after uninstall. `build-installer.ps1` uses a fresh isolated Release root, runs the complete 908-test suite and 34 installer assertions, verifies PE/version/packed assembly hashes, explicit exports, quiet configs, absence of activation resources, 12 icons and strict payload/dependency allowlists, then compiles/verifies Setup. No private key, customer license, developer tool, source/tests or signing certificate is staged.
+
+One Setup EXE in `dist/` bundles Microsoft Desktop Runtime 10.0.12 x86/x64, pinned by official
+SHA-512 and Microsoft Authenticode. Only a missing matching runtime requires UAC; silent
+non-admin deployment with a missing prerequisite fails clearly. Windows 10 22H2+/11 is targeted.
+Existing current/newer 10.0 patches satisfy the prerequisite. Builds do not install runtimes
+on the development machine.
+The architecture-qualified .NET InstalledVersions/sharedfx keys for **both x86 and x64**
+are read from HKLM32; using HKLM64 for x64 misses Microsoft's runtime registration and
+incorrectly rejects a successful prerequisite installation. `Test-RuntimeDetection.ps1`
+compiles a read-only probe of the original Inno function, compares it against actual
+registry registrations for both architectures, and aborts before any installation/registration.
+Both probes run in the release pipeline. Successful runtime-install exit codes are reported
+separately from a failure to verify the subsequent runtime registration.
+`-LiveExcelChecks` optionally runs the installed copy in private
+x64 Excel; default fixture tests isolate AppId/HKCU and mock process/runtime checks.
+
+`Installer/Test-ProductionBlock.ps1` verifies the real Setup running-Excel gate without
+operating on existing Excel: exit 7, matching close-Excel message, identical before/after
+registration/uninstall metadata and no XLL installation passed for the final 0.2.0 EXE.
+
+The release manifest records hashes, size, signature status and remaining acceptance gates.
+Optional real code-signing hooks sign managed DLLs before repacking, then XLLs and Setup;
+`-RequireSigned` rejects unsigned release requests. No fake
+production certificate is created. Signing, clean Windows VM installs on both Excel
+architectures, fresh-user access without activation and legacy upgrade/reinstall/
+uninstall acceptance remain manual release gates. Follow `Installer/README.md`; existing
+developer-host/isolated registry tests do not certify clean-machine deployment.
 
 ## Verification and working constraints
 
-Current suite: **899 xUnit cases** (including 36 constraint-aware iterative-search regressions),
+Current suite: **908 xUnit cases** (including 36 constraint-aware iterative-search regressions
+five Excel-DNA export/packaging contracts and four activation-free contracts),
 zero failures/skips in Debug and Release; full solution builds and x86/x64 packed-XLL
 generation passed in both configurations. Require both configurations for changes to
 execution/persistence. The Windows harness passes six existing Results cases and six
@@ -733,12 +814,14 @@ control overlap, multi-rule details, both chart paint paths, footer bounds and r
 baselines/zones, strict same-side rules, episode deduplication, rejected gaps/edge cases,
 target independence, multi-rule export tables and legacy/five-rule persistence. Debug and
 Release layouts and rendered previews were checked; private Excel SPC and Scenario checks
-passed, including owned process exit. Current optimizer packages are in
-`artifacts/iterative-optimizer-debug/` and `artifacts/iterative-optimizer-release/` (the previous Release
+passed, including owned process exit. Current packed add-ins are in
+`artifacts/diagnostics-debug/` and `artifacts/diagnostics-release/` (the previous Release
 x64 XLL can remain loaded; do not overwrite it or close Excel merely to build).
-All four XLLs were extracted and verified: correct x86/x64 PE headers, all 12 PNG hashes,
+Current package checks verify explicit-export DNA, embedded/sidecar configuration hashes,
+correct x86/x64 PE headers and compiled Core/Excel assembly hashes for both configurations.
+Ribbon packaging checks cover all 12 PNG hashes,
 transparent 32×32 image callback results, five ordered groups and 13 callback mappings
-(the previous 12 unchanged, plus Optimizer);
+(12 functional commands unchanged, plus About Telivu replacing licensing);
 packed Core/Excel SHA-256 hashes match their final compiled assemblies.
 A private Excel instance previously accepted the ribbon Release x64 XLL. Native ribbon interaction, narrow-window
 collapse and actual 100/125/150% Windows DPI rendering remain manual checks; no approved mockup
@@ -776,8 +859,7 @@ Opt-in real Excel integration check (Windows/Excel required): append `-- --live-
 to the harness command. It creates only private Excel instances and a synthetic workbook,
 verifying correlated inputs, named/cross-sheet formulas, source values/formulas/format/Saved state, one copy
 per comparison, success/cancellation/failure cleanup, file deletion and owned process exit.
-It passed locally; Excel startup/shutdown latency can vary substantially and the bounded
-process-exit assertion can time out before eventual exit. This does not certify arbitrary
+It passed locally; The scenario source fixture now runs in a dedicated STA that ends before process-exit checks, matching optimizer/distribution ownership boundaries. Excel startup/shutdown latency can still vary. This does not certify arbitrary
 customer workbooks or real-monitor DPI.
 
 Release publish directory:
@@ -785,8 +867,7 @@ Release publish directory:
 Packed outputs: `MonteCarlo.Excel-AddIn-packed.xll` (x86) and
 `MonteCarlo.Excel-AddIn64-packed.xll` (x64). When Excel locks the normal XLL, use an isolated
 output, e.g. `-p:ExcelDnaPublishPath=C:\montecarlo\artifacts\validation-build`. Do not delete/
-replace a loaded XLL or close Excel merely for validation. Existing warnings: LicenseService
-CS0162, AssumptionForm CS8600 and WorkbookPersistence CS8603 (also linked into tests).
+replace a loaded XLL or close Excel merely for validation. Existing warnings: AssumptionForm CS8600 and WorkbookPersistence CS8603 (also linked into tests).
 
 Live Excel checks remain necessary for COM errors, protected/read-only failures, formula
 restoration, workbook events/switching, save/close/reopen, original-fill restoration,
@@ -868,3 +949,5 @@ formula/source preservation, name reuse, native charts, unique exports, text saf
 rename/insert/delete, zone signals/multiple identifiers and thresholds in export, save/reopen
 and owned process exit. It does not certify interactive
 ribbon clicks/range-picker operation, arbitrary customer workbooks or actual per-monitor DPI.
+
+Activation-free validation includes About layout at 100/125/150%, all existing native layouts, and private installed x64 startup with an empty process-local LOCALAPPDATA environment. Windows known-folder diagnostic logging intentionally stays in its normal location; this does not create a new Windows user/Registry profile. Packed type/resource absence and unchanged legacy Registry snapshots establish no activation dependency. Real x86 Excel startup, clean Windows VM installs, per-monitor DPI and arbitrary customer models remain manual acceptance gates.
