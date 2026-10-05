@@ -57,10 +57,15 @@ Approve the legal license after Office interop/artwork ownership is resolved. Au
 - Installer/LicensingChecks/LicensingChecks.csproj
 - Installer/LicensingChecks/Prepare-Fixture.ps1
 
-## Source commit inventory
+## Publication
+
+Application implementation commit `2a29450` pushed to develop; website commit `d9403f7` pushed to main. GitHub Pages run `37358337618` completed successfully. All 11 published pages responded successfully with the retained current-installer disclosure. Published download JavaScript matches after Git line-ending normalization; configuration differs only by the existing build-time siteUrl substitution. Download URL and handler are unchanged.
+
+## Source commit inventory (2a29450; 79 files)
 
 ```text
 M	.gitignore
+A	ACTIVATION_REMOVAL_VALIDATION.md
 A	CONTRIBUTING.md
 A	Directory.Build.props
 A	Installer/Checks/Checks.csproj
@@ -84,6 +89,7 @@ M	MonteCarlo.Excel/MonteCarlo.Excel.slnx
 A	MonteCarlo.Excel/MonteCarlo.Excel/AboutTelivuForm.cs
 A	MonteCarlo.Excel/MonteCarlo.Excel/AddInDiagnostics.cs
 A	MonteCarlo.Excel/MonteCarlo.Excel/App.config
+M	MonteCarlo.Excel/MonteCarlo.Excel/ExcelModelSimulator.cs
 D	MonteCarlo.Excel/MonteCarlo.Excel/Licensing/ActivationForm.cs
 D	MonteCarlo.Excel/MonteCarlo.Excel/Licensing/ActivationForm.resx
 D	MonteCarlo.Excel/MonteCarlo.Excel/Licensing/LicenseForm.cs

@@ -49,8 +49,8 @@ Its runner uses RegisterXLL in an owned clean Excel process, without changing pe
 AddIns/OPEN settings. Real packed Release x64 and isolated installer-deployed x64 verification
 pass all eight functions, legacy calculator/restoration, ribbon connection, Results and
 Scenario/Optimizer/Correlations/SPC/About Telivu dialogs, simulation, disk save/reopen and synthetic error logging without a popup or
-SimulationSettings warning. Debug live checks passed before the final embedded-COM
-adjustment; final Debug packaging and full unit/layout checks pass. Fresh-profile Release/installer startup passed; verbose logging remains an optional diagnostic check. The runner unregisters the production XLL and releases
+SimulationSettings warning. Final packed Debug x64 and Release/installer fresh-profile
+startup checks pass, alongside final packaging and full unit/layout checks; verbose logging remains an optional diagnostic check. The runner unregisters the production XLL and releases
 COM references; retained private processes require a guarded cleanup using captured PID/
 start time and exclusion of all pre-existing processes. It records that fallback explicitly;
 this does not certify graceful COM shutdown. Do not close customer Excel instances. Live x86,
