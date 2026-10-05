@@ -65,13 +65,13 @@ try {
  }
  await page.emulateMedia({reducedMotion:'reduce'});await page.goto('http://127.0.0.1:8766/');
  assert.equal(await page.locator('html').evaluate(el=>getComputedStyle(el).scrollBehavior),'auto');
- await page.route('**/site-config.js',route=>route.fulfill({contentType:'text/javascript',body:'window.TELIVU_CONFIG={productVersion:"0.2.1",downloadEnabled:true,downloadUrl:"https://example.com/approved.exe",installerSize:"112 MB",releaseStatus:"Unsigned prerelease"};'}));
+ await page.route('**/site-config.js*',route=>route.fulfill({contentType:'text/javascript',body:'window.TELIVU_CONFIG={productVersion:"0.2.1",downloadEnabled:true,downloadUrl:"https://example.com/approved.exe",installerSize:"112 MB",releaseStatus:"Unsigned prerelease"};'}));
  await page.reload();assert.equal(await page.locator('[data-download]').first().innerText(),'Download Telivu Free');assert.equal(await page.locator('[data-download]').first().getAttribute('href'),'https://example.com/approved.exe');assert(await page.locator('[data-installer-size]').isVisible());
  assert((await page.locator('[data-download-status]').innerText()).includes('Unsigned prerelease'));
- await page.unroute('**/site-config.js');
- await page.route('**/site-config.js',route=>route.fulfill({contentType:'text/javascript',body:'window.TELIVU_CONFIG={downloadEnabled:true,downloadUrl:"file:///internal.exe"};'}));
+ await page.unroute('**/site-config.js*');
+ await page.route('**/site-config.js*',route=>route.fulfill({contentType:'text/javascript',body:'window.TELIVU_CONFIG={downloadEnabled:true,downloadUrl:"file:///internal.exe"};'}));
  await page.reload();assert.equal(await page.locator('[data-download]').first().innerText(),'Download unavailable');
- await page.unroute('**/site-config.js');
+ await page.unroute('**/site-config.js*');
  await page.route('**/assets/product/*.webp',route=>route.abort());await page.reload();
  assert(await page.locator('.product-shot figcaption').isVisible());assert.equal(await page.locator('.placeholder').count(),0);
  // Images retain dimensions, alt text and captions if an asset cannot load.

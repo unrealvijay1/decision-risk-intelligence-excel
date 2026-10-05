@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const config = window.TELIVU_CONFIG || {};
-  const script = document.querySelector('script[src$="js/site.js"]');
+  const script = document.currentScript;
   const base = new URL("../", script.src);
   const https = value => { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password ? u.href : ""; } catch { return ""; } };
   const download = config.downloadEnabled === true ? https(config.downloadUrl) : "";
