@@ -12,7 +12,7 @@ The current application source has no activation, license key, trial, expiry or 
 
 ## Distribution and legal status
 
-The public download still serves the unchanged unsigned 0.2.1 installer with legacy trial/activation. This development build removes activation; a new public release requires separate authorization. No release asset or download mechanism is changed by this task.
+The current activation-free installer runs without product keys, trial limits, expiry or paid feature gates. Its assembly version remains 0.2.1. The historical v0.2.1 release remains available separately. Open-source license approval remains pending.
 
 Apache-2.0 is the preferred candidate, but no legal license has been applied. [The dependency audit](OPEN_SOURCE_LICENSE_AUDIT.md) identifies unresolved Office interop terms and artwork ownership for owner review. Until resolved and approved, open-source positioning expresses the strategy and does not grant source redistribution or commercial-use rights.
 

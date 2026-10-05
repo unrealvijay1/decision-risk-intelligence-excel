@@ -1,6 +1,10 @@
 # Activation removal validation
 
-Reconciled 2026-10-06. Application: https://github.com/unrealvijay1/decision-risk-intelligence-excel (develop). Official website: https://unrealvijay1.github.io/telivu/ . Website/release repository: https://github.com/unrealvijay1/telivu (main).
+Reconciled 2026-10-06. The original implementation validation below records the previously preserved download; see the current release publication status immediately below. Application: https://github.com/unrealvijay1/decision-risk-intelligence-excel (develop). Official website: https://unrealvijay1.github.io/telivu/ . Website/release repository: https://github.com/unrealvijay1/telivu (main).
+
+## Current activation-free release publication
+
+Owner authorized the website download transition. Published `v0.2.1-activation-free.1` in the Telivu release repository with the exact previously validated installer, public filename `TelivuForExcel-Setup-0.2.1.exe`; assembly version remains 0.2.1. GitHub asset metadata and a complete browser-button download confirm 117,421,206 bytes and SHA-256 `d296fa49e7244483d3a2446e129bd036bff241cbe366830f5f2aab2d380fc048`. Historical v0.2.1 is unchanged. Website commit `3105e2a` points all download buttons to the new release and updates the activation disclosure. Static validation passes 11 pages/287 references; browser regression passes all six widths and both root/project routes with zero JavaScript errors/overflow. Legal open-source license approval, signing, clean Windows VM and real x86 Excel acceptance remain pending. The release is explicitly an unsigned prerelease.
 
 ## Implementation
 
@@ -37,7 +41,7 @@ Some required installer/startup/diagnostic infrastructure was already present bu
 
 ## Remaining owner decisions and manual acceptance
 
-Approve the legal license after Office interop/artwork ownership is resolved. Authorize an activation-free public release separately; the unchanged public v0.2.1 download still has its historical trial/activation, as explicitly disclosed and requested. No release, public binary, artifact name or release history was changed. Clean Windows VM installation/normal persistent startup on both actual Excel architectures, real x86 Excel, per-monitor DPI, signing and arbitrary customer models remain manual acceptance gates. Therefore the public-download definition of done remains pending a future release; current source/local installer transition is implemented and validated.
+Approve the legal license after Office interop/artwork ownership is resolved. Activation-free public release publication is now authorized and completed as described above. Historical v0.2.1 retains its original trial/activation asset; release history was preserved. Clean Windows VM installation/normal persistent startup on both actual Excel architectures, real x86 Excel, per-monitor DPI, signing and arbitrary customer models remain manual acceptance gates. The website now selects the activation-free installer; current source/local installer transition is implemented and validated.
 
 ## Files removed
 

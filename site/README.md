@@ -6,7 +6,7 @@ Simulation • Optimization • Scenarios • Sensitivity • SPC
 
 **Free. Open Source. No Subscription. No Activation.**
 
-Telivu's current development code runs the same analytical toolkit for everyone without activation or access tiers. The existing public 0.2.1 installer retains its legacy trial/activation until an activation-free release is authorized. This repository hosts the official static website and existing installer distribution; application source is available in the existing decision-risk-intelligence-excel repository; legal open-source license approval remains pending owner review.
+The current activation-free installer runs without product keys, trial limits, expiry or paid feature gates. Its assembly version remains 0.2.1. The historical v0.2.1 release remains available separately. Open-source license approval remains pending.
 
 [Website](https://unrealvijay1.github.io/telivu/) · [Download](https://unrealvijay1.github.io/telivu/#download) · [Source](https://github.com/unrealvijay1/decision-risk-intelligence-excel) · [Documentation](https://unrealvijay1.github.io/telivu/resources/documentation/) · [Issues](https://github.com/unrealvijay1/decision-risk-intelligence-excel/issues) · [Contributing](https://github.com/unrealvijay1/telivu/blob/main/CONTRIBUTING.md) · [Support information](https://unrealvijay1.github.io/telivu/support/)
 
