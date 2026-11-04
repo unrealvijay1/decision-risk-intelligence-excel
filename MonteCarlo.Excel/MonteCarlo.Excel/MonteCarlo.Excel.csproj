@@ -8,8 +8,9 @@
     <!-- Application/model helpers are not worksheet exports. Ribbon discovery is independent. -->
     <ExcelAddInExplicitExports>true</ExcelAddInExplicitExports>
     <ExcelAddInUseVersionAsOutputVersion>true</ExcelAddInUseVersionAsOutputVersion>
-    <Product>Monte Carlo for Excel</Product>
+    <Product>MCsim</Product>
     <Company>Vijay</Company>
+    <ExcelAddInName>MCsim</ExcelAddInName>
   </PropertyGroup>
 
   <ItemGroup>

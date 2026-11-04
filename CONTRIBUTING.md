@@ -1,4 +1,4 @@
-# Contributing to Telivu
+# Contributing to MCsim
 
 ## Bugs and features
 

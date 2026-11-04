@@ -146,16 +146,16 @@ public static class StartupChecks
 
             object ribbon = Activator.CreateInstance(Type("MonteCarloRibbon"))!;
             string xml = (string)Type("MonteCarloRibbon").GetMethod("GetCustomUI")!.Invoke(ribbon, [""])!;
-            if (!xml.Contains("Telivu") || !xml.Contains("OnOptimizer") || !xml.Contains("OnAboutTelivu") || xml.Contains("OnLicense")) throw new Exception("Ribbon XML failed.");
+            if (!xml.Contains("MCsim") || !xml.Contains("OnOptimizer") || !xml.Contains("OnAboutMCsim") || xml.Contains("OnLicense")) throw new Exception("Ribbon XML failed.");
             bool connected = false;
             foreach (dynamic addin in app.COMAddIns)
-                if (((string)addin.Description).Contains("MonteCarlo", StringComparison.OrdinalIgnoreCase) && (bool)addin.Connect) connected = true;
-            if (!connected) throw new Exception("Monte Carlo ribbon COM add-in is not connected.");
+                if (((string)addin.Description).Contains("MCsim", StringComparison.OrdinalIgnoreCase) && (bool)addin.Connect) connected = true;
+            if (!connected) throw new Exception("MCsim ribbon COM add-in is not connected.");
             foreach (var (callback, expected) in new[]
             {
                 ("OnScenarioAnalysis", "ScenarioAnalysisForm"), ("OnOptimizer", "OptimizerForm"),
                 ("OnCorrelations", "AssumptionCorrelationsForm"), ("OnSpcAnalysis", "SpcConfigurationForm"),
-                ("OnAboutTelivu", "AboutTelivuForm")
+                ("OnAboutMCsim", "AboutMCsimForm")
             })
             {
                 bool opened = false;
@@ -169,7 +169,7 @@ public static class StartupChecks
                 if (!opened) throw new Exception("Ribbon callback did not open " + expected);
                 lines.Add("RIBBON DIALOG PASS " + expected);
             }
-            lines.Add("RIBBON PASS COM add-in connected, 12 analysis callbacks and About Telivu connected");
+            lines.Add("RIBBON PASS COM add-in connected, 12 analysis callbacks and About MCsim connected");
             string workbookFile = Path.ChangeExtension(report, ".xlsx");
             book.SaveAs(workbookFile, 51); book.Close(false); book = app.Workbooks.Open(workbookFile); sheet = book.Worksheets["Model"];
             Simulation(); lines.Add("SAVE/REOPEN PASS persisted assumptions/forecast and successful simulation");

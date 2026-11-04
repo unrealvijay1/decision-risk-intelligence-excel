@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">MCsim — Clarity in uncertainty</title>
+  <desc id="description">Decision analysis for Excel: Simulate, Explore, Optimize, Control.</desc>
+  <rect width="1200" height="630" fill="#f5f7f2"/>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <text x="85" y="124" fill="#125e50" font-size="36">MCsim</text>
+    <text x="85" y="308" fill="#192923" font-size="72">Clarity in uncertainty.</text>
+    <text x="85" y="380" fill="#65766f" font-size="32">Decision analysis for Excel.</text>
+    <text x="85" y="534" fill="#125e50" font-size="26">Simulate · Explore · Optimize · Control</text>
+  </g>
+</svg>

@@ -1,4 +1,8 @@
-# Telivu
+# MCsim
+
+Formerly Telivu. Hosted project/release URLs retain their existing `telivu` path.
+The current download is the published Telivu installer; a new MCsim release has
+not been published by this source change.
 
 **Open-Source Decision Intelligence for Excel**
 

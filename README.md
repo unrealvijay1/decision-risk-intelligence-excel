@@ -1,4 +1,8 @@
-# Telivu
+# MCsim
+
+Formerly Telivu. New installer builds use `MCsim-Setup-0.2.1.exe`; the current public
+download is the previously published Telivu build. Existing workbooks and installed
+add-in registration remain compatible. See [rebranding scope](REBRANDING.md).
 
 **Open-Source Decision Intelligence for Excel**
 
@@ -20,4 +24,4 @@ Donation provider setup required; no donation button or payment collection exist
 
 ## Develop and validate
 
-See [CONTRIBUTING](CONTRIBUTING.md), [installer instructions](Installer/README.md), [startup fixture](MonteCarlo.Excel.StartupChecks/README.md) and [layout harness](MonteCarlo.Results.LayoutChecks/README.md). The product is a C#/.NET 10 Windows Excel-DNA add-in; builds produce packed x86/x64 XLLs. The ribbon includes About Telivu under Help. Old user activation files/Registry values are ignored and never deleted by startup or installation.
+See [CONTRIBUTING](CONTRIBUTING.md), [installer instructions](Installer/README.md), [startup fixture](MonteCarlo.Excel.StartupChecks/README.md) and [layout harness](MonteCarlo.Results.LayoutChecks/README.md). The product is a C#/.NET 10 Windows Excel-DNA add-in; builds produce packed x86/x64 XLLs. The ribbon includes About MCsim under Help. Old user activation files/Registry values are ignored and never deleted by startup or installation.

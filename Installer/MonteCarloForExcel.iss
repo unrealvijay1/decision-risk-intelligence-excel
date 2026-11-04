@@ -1,4 +1,4 @@
-#define MyAppName "Monte Carlo for Excel"
+#define MyAppName "MCsim"
 #define MyAppPublisher "Vijay"
 #define MyAppFileName "MonteCarloForExcel.xll"
 #ifndef ProductVersion
@@ -25,7 +25,7 @@ PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
 DisableDirPage=yes
 OutputDir={#OutputDirectory}
-OutputBaseFilename=MonteCarloForExcel-Setup-{#MyAppVersion}
+OutputBaseFilename=MCsim-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -282,7 +282,7 @@ begin
   if ExcelPath = '' then begin
     Result := 'Excel detection is inconclusive. Select EXCEL.EXE or supply /EXCELPATH="<full path>".'; Exit;
   end;
-  if ExcelRunning then begin Result := 'Close all Microsoft Excel instances before installing or updating Monte Carlo for Excel.'; Exit; end;
+  if ExcelRunning then begin Result := 'Close all Microsoft Excel instances before installing or updating MCsim.'; Exit; end;
   if FindRegistrationSlot() = '' then begin Result := 'No available Excel OPEN registry slot. Installation cancelled.'; Exit; end;
   if not RuntimeInstalled then begin
     if WizardSilent and not IsAdmin then begin
@@ -305,7 +305,7 @@ begin
       RegisterExcelAddIn();
       RegistrationReady := True;
     except
-      Result := 'Could not register Monte Carlo for Excel. '+GetExceptionMessage();
+      Result := 'Could not register MCsim. '+GetExceptionMessage();
     end;
   end;
 end;
@@ -350,7 +350,7 @@ end;
 function InitializeUninstall(): Boolean;
 begin
   Result := not ExcelRunning;
-  if not Result then SuppressibleMsgBox('Close all Microsoft Excel instances before uninstalling Monte Carlo for Excel.', mbError, MB_OK, IDOK);
+  if not Result then SuppressibleMsgBox('Close all Microsoft Excel instances before uninstalling MCsim.', mbError, MB_OK, IDOK);
 end;
 procedure UnregisterExcelAddIn();
 var Key, Command, Recorded: String;

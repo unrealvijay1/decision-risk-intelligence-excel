@@ -1,0 +1,38 @@
+name: MCsim checks
+
+on:
+  push:
+    branches: [develop, rebrand/telivu-to-mcsim]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build packed Excel add-ins
+        run: dotnet build MonteCarlo.Excel/MonteCarlo.Excel.slnx -c Release
+      - name: Test calculations and workbook compatibility
+        run: dotnet test MonteCarlo.Core.Tests/MonteCarlo.Core.Tests.csproj -c Release --no-build --logger trx
+      - name: Build developer verification tools
+        run: |
+          dotnet build MonteCarlo.Excel.StartupChecks/MonteCarlo.Excel.StartupChecks.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build MonteCarlo.Results.LayoutChecks/MonteCarlo.Results.LayoutChecks.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build Installer/Checks/Checks.csproj -c Release
+      - name: Build website
+        run: python site/scripts/build.py --site-url https://unrealvijay1.github.io/telivu/
+      - name: Validate website
+        run: python site/scripts/check.py site/_build
