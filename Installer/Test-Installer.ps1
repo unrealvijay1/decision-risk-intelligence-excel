@@ -24,7 +24,7 @@ $source=$source.Replace('MonteCarloForExcelSetup','MonteCarloInstallerFixture'+$
 $script=Join-Path $root 'Fixture.iss'; [IO.File]::WriteAllText($script,$source)
 & $IsccPath ('/DProductVersion='+$Version) ('/DPayloadDir='+$PayloadDir) ('/DOutputDirectory='+$root) $script | Set-Content (Join-Path $root 'compile.log')
 if($LASTEXITCODE -ne 0){throw 'Fixture compiler failed'}
-$setup=Join-Path $root "MonteCarloForExcel-Setup-$Version.exe"
+$setup=Join-Path $root "MCsim-Setup-$Version.exe"
 $options=$namespace+'\Office\16.0\Excel\Options'; $meta=$namespace+'\Installer'
 $arp='Software\Microsoft\Windows\CurrentVersion\Uninstall\{'+$testAppId+'}_is1'
 $oldDir=Join-Path $root 'old-app'; $newDir=Join-Path $root 'new-app'

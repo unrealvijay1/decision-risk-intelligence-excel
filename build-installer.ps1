@@ -81,11 +81,11 @@ if($LiveExcelChecks) {
 & ./Installer/Test-Installer.ps1 -PayloadDir $stage -IsccPath $IsccPath -Version $version -LiveStartup:$LiveExcelChecks
 if(-not $?){throw 'Installer lifecycle verification failed'}
 Run $IsccPath @(('/DProductVersion='+$version),('/DPayloadDir='+$stage),('/DOutputDirectory='+(Join-Path $root 'output')),'Installer/MonteCarloForExcel.iss')
-$exe=Join-Path $root "output/MonteCarloForExcel-Setup-$version.exe"
+$exe=Join-Path $root "output/MCsim-Setup-$version.exe"
 Sign Installer @($exe)
 $info=Get-Item -LiteralPath $exe
 if($info.Length -lt 1000000 -or $info.VersionInfo.ProductVersion.Trim() -ne $version -or $info.VersionInfo.FileVersion.Trim() -ne ($version+'.0')){throw 'Setup EXE version/size verification failed'}
-$destination=Join-Path $dist "MonteCarloForExcel-Setup-$version.exe"
+$destination=Join-Path $dist "MCsim-Setup-$version.exe"
 Copy-Item -LiteralPath $exe -Destination $destination
 $manifest=[ordered]@{
   version=$version; installer=$destination; bytes=$info.Length; sha256=(Get-FileHash $exe).Hash;
@@ -96,6 +96,6 @@ $manifest=[ordered]@{
   installedCopyLiveExcelChecked=[bool]$LiveExcelChecks;
   cleanMachineAcceptance='Pending: disposable Windows + x86/x64 Excel, no activation state, upgrade/reinstall/uninstall and prerequisite UAC';
 }
-$manifest | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $dist "MonteCarloForExcel-$version-manifest.json")
+$manifest | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $dist "MCsim-$version-manifest.json")
 Write-Output "READY FOR ACCEPTANCE: $destination ($($info.Length) bytes), version $version, signature $($manifest.signature)."
 } finally { Stop-Transcript | Out-Null }

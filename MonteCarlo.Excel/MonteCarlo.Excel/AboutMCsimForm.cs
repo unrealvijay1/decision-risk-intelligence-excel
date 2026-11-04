@@ -5,11 +5,11 @@ using System.Windows.Forms;
 namespace MonteCarlo.Excel;
 
 /// <summary>Product information only; no account, activation or persistent state.</summary>
-public sealed class AboutTelivuForm : Form
+public sealed class AboutMCsimForm : Form
 {
-    public AboutTelivuForm()
+    public AboutMCsimForm()
     {
-        Text = "About Telivu";
+        Text = "About MCsim";
         Font = new System.Drawing.Font("Segoe UI", 10F);
         AutoScaleMode = AutoScaleMode.Dpi;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -31,11 +31,11 @@ public sealed class AboutTelivuForm : Form
             Text = text, AutoSize = true, MaximumSize = new System.Drawing.Size(465, 0),
             Font = new System.Drawing.Font("Segoe UI", size), Margin = new Padding(0, 0, 0, 12)
         };
-        content.Controls.Add(Line("TELIVU", 22F));
+        content.Controls.Add(Line("MCsim", 22F));
         content.Controls.Add(Line("Decision Intelligence for Excel", 12F));
-        string version = typeof(AboutTelivuForm).Assembly
+        string version = typeof(AboutMCsimForm).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? typeof(AboutTelivuForm).Assembly.GetName().Version?.ToString() ?? "";
+            ?? typeof(AboutMCsimForm).Assembly.GetName().Version?.ToString() ?? "";
         content.Controls.Add(Line("Version: " + version));
         content.Controls.Add(Line("Free • No subscription • No activation"));
         content.Controls.Add(Line("Simulation, optimization, scenario analysis, sensitivity and statistical process control directly in Excel."));
@@ -56,7 +56,7 @@ public sealed class AboutTelivuForm : Form
                 {
                     Trace.TraceError(ex.ToString());
                     MessageBox.Show(this, "Your browser could not open the link.\n" + url,
-                        "Telivu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        "MCsim", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             };
             links.Controls.Add(link);

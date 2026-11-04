@@ -36,12 +36,12 @@ try {
    await page.evaluate(()=>document.fonts.ready);
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Horizontal overflow at '+width);
    assert.equal(await page.locator('h1').innerText(),'Make better decisions.\nDirectly in Excel.');
-   const config=await page.evaluate(()=>window.TELIVU_CONFIG);
+   const config=await page.evaluate(()=>window.MCSIM_CONFIG);
    const enabled=config.downloadEnabled===true&&/^https:\/\//.test(config.downloadUrl);
    const expected=enabled?config.downloadUrl:'http://127.0.0.1:8766'+prefix+'index.html#download';
    const ctas=page.locator('[data-download]');assert.equal(await ctas.count(),4);
    for(const cta of await ctas.all()){
-    assert.equal(await cta.innerText(),enabled?'Download Telivu Free':'Download unavailable');
+    assert.equal(await cta.innerText(),enabled?'Download MCsim Free':'Download unavailable');
     assert.equal(await cta.getAttribute('href'),expected);
    }
    if(enabled)assert.equal(await page.locator('[data-release-notes]').getAttribute('href'),config.releaseNotesUrl);
@@ -60,26 +60,26 @@ try {
   }
   await page.goto('http://127.0.0.1:8766'+prefix+'resources/documentation/');
   assert((await page.locator('h1').innerText()).includes('Documentation'));
-  const nestedConfig=await page.evaluate(()=>window.TELIVU_CONFIG);
+  const nestedConfig=await page.evaluate(()=>window.MCSIM_CONFIG);
   assert.equal(await page.locator('[data-download]').first().getAttribute('href'),nestedConfig.downloadEnabled?nestedConfig.downloadUrl:'http://127.0.0.1:8766'+prefix+'index.html#download');
  }
  await page.emulateMedia({reducedMotion:'reduce'});await page.goto('http://127.0.0.1:8766/');
  assert.equal(await page.locator('html').evaluate(el=>getComputedStyle(el).scrollBehavior),'auto');
- await page.route('**/site-config.js*',route=>route.fulfill({contentType:'text/javascript',body:'window.TELIVU_CONFIG={productVersion:"0.2.1",downloadEnabled:true,downloadUrl:"https://example.com/approved.exe",installerSize:"112 MB",releaseStatus:"Unsigned prerelease"};'}));
- await page.reload();assert.equal(await page.locator('[data-download]').first().innerText(),'Download Telivu Free');assert.equal(await page.locator('[data-download]').first().getAttribute('href'),'https://example.com/approved.exe');assert(await page.locator('[data-installer-size]').isVisible());
+ await page.route('**/site-config.js*',route=>route.fulfill({contentType:'text/javascript',body:'window.MCSIM_CONFIG={productVersion:"0.2.1",downloadEnabled:true,downloadUrl:"https://example.com/approved.exe",installerSize:"112 MB",releaseStatus:"Unsigned prerelease"};'}));
+ await page.reload();assert.equal(await page.locator('[data-download]').first().innerText(),'Download MCsim Free');assert.equal(await page.locator('[data-download]').first().getAttribute('href'),'https://example.com/approved.exe');assert(await page.locator('[data-installer-size]').isVisible());
  assert((await page.locator('[data-download-status]').innerText()).includes('Unsigned prerelease'));
  await page.unroute('**/site-config.js*');
- await page.route('**/site-config.js*',route=>route.fulfill({contentType:'text/javascript',body:'window.TELIVU_CONFIG={downloadEnabled:true,downloadUrl:"file:///internal.exe"};'}));
+ await page.route('**/site-config.js*',route=>route.fulfill({contentType:'text/javascript',body:'window.MCSIM_CONFIG={downloadEnabled:true,downloadUrl:"file:///internal.exe"};'}));
  await page.reload();assert.equal(await page.locator('[data-download]').first().innerText(),'Download unavailable');
  await page.unroute('**/site-config.js*');
  await page.route('**/assets/product/*.webp',route=>route.abort());await page.reload();
  assert(await page.locator('.product-shot figcaption').isVisible());assert.equal(await page.locator('.placeholder').count(),0);
  // Images retain dimensions, alt text and captions if an asset cannot load.
- const noJS=await browser.newContext({javaScriptEnabled:false,viewport:{width:375,height:812}});const fallback=await noJS.newPage();await fallback.goto('http://127.0.0.1:8766/');assert(await fallback.locator('#navigation').isVisible());assert.equal(await fallback.locator('[data-download]').first().innerText(),'Download Telivu Free');await noJS.close();
+ const noJS=await browser.newContext({javaScriptEnabled:false,viewport:{width:375,height:812}});const fallback=await noJS.newPage();await fallback.goto('http://127.0.0.1:8766/');assert(await fallback.locator('#navigation').isVisible());assert.equal(await fallback.locator('[data-download]').first().innerText(),'Download MCsim Free');await noJS.close();
  if(process.env.VERIFY_LIVE_DOWNLOAD==='1'){
   await page.unroute('**/assets/product/*.webp');
   await page.goto('http://127.0.0.1:8766/');
-  const config=await page.evaluate(()=>window.TELIVU_CONFIG);
+  const config=await page.evaluate(()=>window.MCSIM_CONFIG);
   const pending=page.waitForEvent('download',{timeout:120000});
   await page.locator('.hero [data-download]').click();
   const download=await pending;

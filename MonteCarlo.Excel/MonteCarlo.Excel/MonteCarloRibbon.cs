@@ -28,7 +28,7 @@ namespace MonteCarlo.Excel
     <tabs>
 
       <tab id='MonteCarloTab'
-           label='Telivu'>
+           label='MCsim'>
 
         <group id='ModelSetupGroup'
                label='Model Setup'>
@@ -126,13 +126,13 @@ namespace MonteCarlo.Excel
                label='Help'>
 
           <button
-              id='AboutTelivuButton'
-              label='About Telivu'
-              screentip='About Telivu'
+              id='AboutMCsimButton'
+              label='About MCsim'
+              screentip='About MCsim'
               supertip='View the product version, website and contribution links.'
               size='large'
               imageMso='FileProperties'
-              onAction='OnAboutTelivu'/>
+              onAction='OnAboutMCsim'/>
 
         </group>
 
@@ -671,16 +671,16 @@ namespace MonteCarlo.Excel
 
 
         // =========================================================
-        // ABOUT TELIVU
+        // ABOUT MCsim
         // =========================================================
 
-        public void OnAboutTelivu(
+        public void OnAboutMCsim(
             IRibbonControl control)
         {
             try
             {
-                using AboutTelivuForm form =
-                    new AboutTelivuForm();
+                using AboutMCsimForm form =
+                    new AboutMCsimForm();
 
 
                 form.ShowDialog();

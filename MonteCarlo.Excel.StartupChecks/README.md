@@ -64,4 +64,4 @@ launch process. Do not change shared Excel-DNA registry settings for production 
 
 ## Activation-free startup
 
-Use -FreshProfile with Verify-Startup.ps1. The developer fixture prepares an empty process-local LOCALAPPDATA before loading the production XLL, rejects any production activation types/key resources, opens About Telivu, runs analysis/save-reopen, checks no activation folder was created and verifies legacy Registry values were not changed. Real user activation files/Registry are never cleared. This is a private-process/profile test, not a new Windows-user or clean-VM certification.
+Use -FreshProfile with Verify-Startup.ps1. The developer fixture prepares an empty process-local LOCALAPPDATA before loading the production XLL, rejects any production activation types/key resources, opens About MCsim, runs analysis/save-reopen, checks no activation folder was created and verifies legacy Registry values were not changed. Real user activation files/Registry are never cleared. This is a private-process/profile test, not a new Windows-user or clean-VM certification.

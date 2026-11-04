@@ -35,11 +35,11 @@ public class ActivationFreeContractTests
         string ribbon = File.ReadAllText(Path.Combine(App, "MonteCarloRibbon.cs"));
         var callbacks = Regex.Matches(ribbon, @"onAction='([^']+)'").Select(m => m.Groups[1].Value).ToArray();
         Assert.Equal(13, callbacks.Length);
-        Assert.Contains("OnAboutTelivu", callbacks);
+        Assert.Contains("OnAboutMCsim", callbacks);
         Assert.DoesNotContain("OnLicense", callbacks);
-        Assert.Contains("label='Telivu'", ribbon);
+        Assert.Contains("label='MCsim'", ribbon);
         Assert.Contains("id='HelpGroup'", ribbon);
-        Assert.Contains("label='About Telivu'", ribbon);
+        Assert.Contains("label='About MCsim'", ribbon);
         foreach (string callback in new[] { "OnDefineAssumption", "OnDefineForecast", "OnCorrelations", "OnModelManager", "OnClearCellDefinition", "OnRunSimulation", "OnScenarioAnalysis", "OnOptimizer", "OnSimulationSettings", "OnReloadModel", "OnSpcAnalysis", "OnClearModel" })
             Assert.Contains(callback, callbacks);
     }

@@ -1,5 +1,11 @@
 # Production installer
 
+Product display/version metadata is MCsim. The build emits
+`dist/MCsim-Setup-0.2.1.exe` and `dist/MCsim-0.2.1-manifest.json`.
+The installed `MonteCarloForExcel.xll`/sidecar, original installation directory,
+setup mutex and registry identities remain stable so upgrades preserve registration
+and logging preferences. Published Telivu assets retain their original filenames.
+
 The existing Inno Setup installer retains AppId `{9B4D8E57-7B33-4C68-9D1D-91D5E4D8F001}`
 and per-user installation under LocalAppData/Programs. This preserves existing upgrades,
 HKCU registration ownership without requiring elevation for the add-in.
@@ -7,7 +13,7 @@ Only a missing Microsoft Desktop Runtime prerequisite requires administrator app
 
 ## Activation-free product
 
-The add-in has no license key, account, trial, expiry, activation service or access-tier architecture. Help → About Telivu replaces the former licensing control and shows the actual assembly version. No support-payment button exists without a real provider. The software license remains an independent owner decision; see OPEN_SOURCE_LICENSE_AUDIT.md.
+The add-in has no license key, account, trial, expiry, activation service or access-tier architecture. Help → About MCsim replaces the former licensing control and shows the actual assembly version. No support-payment button exists without a real provider. The software license remains an independent owner decision; see OPEN_SOURCE_LICENSE_AUDIT.md.
 
 Old activation files and Registry values are ignored and deliberately left untouched by startup and installation. The installer retains its stable AppId, per-user path and OPEN registration ownership. Workbook data and logging storage are independent and unchanged.
 
@@ -71,7 +77,7 @@ fresh/reinstall/legacy migration/duplicates/other add-ins/uninstall/replaced slo
 Excel/prerequisite failures and injected registration-write rollback. AppId/registry paths
 are isolated; WMI/runtime-install behavior is mocked there. License/trial sentinels establish
 installer non-interference, not real paid-code activation through the production key.
-Live installed x64 checks cover fresh-profile startup, UDFs, ribbon dialogs including About Telivu/Results, simulation,
+Live installed x64 checks cover fresh-profile startup, UDFs, ribbon dialogs including About MCsim/Results, simulation,
 save/reopen and quiet/file diagnostics. The COM harness can retain its private Excel after
 Quit; only the captured new PID/start time is eligible for cleanup, recorded in cleanup.txt.
 No customer Excel is closed. This harness fallback does not prove graceful COM shutdown.
@@ -81,7 +87,7 @@ No customer Excel is closed. This harness fallback does not prove graceful COM s
 Use a disposable Windows 10 22H2+/11 VM with desktop Excel and no developer tools.
 Test both Excel architectures, including x86 Excel on x64 Windows, missing runtime/elevation,
 no Excel, conflicting detection and cancelled selection. Verify fresh install, ribbon,
-About Telivu, no activation prompts/state creation, all analysis dialogs, simulation/Results, real model save/reopen and production logs/no diagnostic popup.
+About MCsim, no activation prompts/state creation, all analysis dialogs, simulation/Results, real model save/reopen and production logs/no diagnostic popup.
 Upgrade an activated 0.1.0 installation, reinstall the same version, uninstall (no stale
 loading/missing-XLL warning), then reinstall and confirm analysis works without using any old activation state, with config retained.
 Verify a running Excel workbook blocks all mutations and other OPEN registrations survive.

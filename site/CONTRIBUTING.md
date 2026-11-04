@@ -1,4 +1,4 @@
-# Contributing to the Telivu website
+# Contributing to the MCsim website
 
 Report bugs or request features through https://github.com/unrealvijay1/telivu/issues. Include the page URL, browser/viewport, expected result and steps to reproduce. For application issues include Windows/Excel architecture and synthetic models only.
 

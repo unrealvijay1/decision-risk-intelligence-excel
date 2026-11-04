@@ -1,6 +1,6 @@
-# Monte Carlo for Excel — Project Context
+# MCsim — Project Context
 
-Last reconciled with source and tests: **2026-10-06**.
+Last reconciled with source and tests: **2026-11-04**.
 
 This is the persistent project handoff and source of truth for future Codex sessions.
 Read it before implementation. Verify relevant source before changing behavior; reconcile
@@ -11,6 +11,19 @@ capabilities, not a change log, temporary debugging details or build transcripts
 
 ## Architecture and repository map
 
+Product branding is **MCsim** (formerly Telivu). `REBRANDING.md` records the scope
+and compatibility boundaries. The ribbon/About dialog, Excel-DNA display name and
+assembly Product metadata use MCsim; new Setup builds are `MCsim-Setup-0.2.1.exe`
+with `MCsim-0.2.1-manifest.json`. Internal MonteCarlo project/assembly/resource names,
+worksheet functions, persistence envelopes, logging paths, installed XLL/sidecar,
+installation directory, installer AppId/mutex and registry ownership remain stable.
+No workbook/user-data migration is required. Website code uses `MCSIM_CONFIG`.
+Existing `telivu` hosted paths and historical release URLs/filenames/hashes are real
+published resources and remain unchanged; the available download predates MCsim.
+Historical validation reports retain original product names. MCsim CI validates
+develop/PR builds, tests and website boundaries without publishing. The existing
+untracked application Pages workflow is not part of the rebranding change.
+
 Windows Excel add-in using C#/.NET 10, Excel-DNA 1.9 and WinForms/GDI+.
 Primary customer platform is **64-bit Excel**; builds also produce an x86 XLL.
 
@@ -18,7 +31,7 @@ Primary customer platform is **64-bit Excel**; builds also produce an x86 XLL.
 
 `ExcelAddInExplicitExports=true` generates `ExternalLibrary ExplicitExports="true"`.
 Only the eight attributed `MC.*` worksheet functions and `MC_RUN_PROJECTMODEL` command
-are registered; `IExcelAddIn` and ribbon discovery still work independently, with 12 analysis callbacks and About Telivu. Model helpers are not UDFs. Without explicit exports,
+are registered; `IExcelAddIn` and ribbon discovery still work independently, with 12 analysis callbacks and About MCsim. Model helpers are not UDFs. Without explicit exports,
 `SimulationSettings.TryParse` reaches Excel-DNA's delegate-signature generation for its
 enum/model/out parameters and throws “A non-collectible assembly may not reference a
 collectible assembly” in Reflection.Emit. The live fixture reproduces that old path and
@@ -48,7 +61,7 @@ workbook persistence semantics are unchanged.
 Its runner uses RegisterXLL in an owned clean Excel process, without changing persistent
 AddIns/OPEN settings. Real packed Release x64 and isolated installer-deployed x64 verification
 pass all eight functions, legacy calculator/restoration, ribbon connection, Results and
-Scenario/Optimizer/Correlations/SPC/About Telivu dialogs, simulation, disk save/reopen and synthetic error logging without a popup or
+Scenario/Optimizer/Correlations/SPC/About MCsim dialogs, simulation, disk save/reopen and synthetic error logging without a popup or
 SimulationSettings warning. Final packed Debug x64 and Release/installer fresh-profile
 startup checks pass, alongside final packaging and full unit/layout checks; verbose logging remains an optional diagnostic check. The runner unregisters the production XLL and releases
 COM references; retained private processes require a guarded cleanup using captured PID/
@@ -60,7 +73,7 @@ DPI remain manual. See the fixture README for commands and logging configuration
 | Location (relative to repository root) | Responsibility |
 | --- | --- |
 | `MonteCarlo.Core/` | Sampling, fitting/preview, probability/CDF, chart helpers, scenario rules and independent SPC/XmR mathematics; `net10.0` |
-| `MonteCarlo.Excel/MonteCarlo.Excel/` | Ribbon, model/UI, Excel COM adapters, persistence, execution, reporting and About Telivu; `net10.0-windows` |
+| `MonteCarlo.Excel/MonteCarlo.Excel/` | Ribbon, model/UI, Excel COM adapters, persistence, execution, reporting and About MCsim; `net10.0-windows` |
 | `MonteCarlo.Excel/MonteCarlo.Excel.slnx` | Main solution |
 | `MonteCarlo.Core.Tests/` | xUnit; links production non-UI Excel source against workbook doubles |
 | `MonteCarlo.Results.LayoutChecks/` | Separate Windows-only hidden WinForms layout/rendering harness |
@@ -78,10 +91,10 @@ Ribbon run opens a fresh modal `ResultsForm`; chart/calculator actions do not re
 
 - Ribbon groups: Model Setup (Define Assumption, Define Forecast, Correlations, Model Manager, Clear
   Cell Definition); Simulation (Run Simulation, Scenario Analysis, Optimizer, Simulation Settings, Reload Model);
-  Process Analysis (SPC Analysis); Maintenance (Clear Model); Help (About Telivu). Export Report is in Results.
+  Process Analysis (SPC Analysis); Maintenance (Clear Model); Help (About MCsim). Export Report is in Results.
 - All 13 ribbon commands are native large buttons. Excel owns label wrapping, alignment and
   narrow-window group collapse; there are no fixed-width spacers or custom panels. All existing
-  analysis command IDs, callbacks and implementations are preserved. The former Product/License control is replaced with Help/About Telivu (`OnAboutTelivu`), retaining the built-in `imageMso=FileProperties` icon. The ribbon tab is labeled Telivu; application assembly/workbook/installer identifiers remain unchanged.
+  analysis command IDs, callbacks and implementations are preserved. The former Product/License control is replaced with Help/About MCsim (`OnAboutMCsim`), retaining the built-in `imageMso=FileProperties` icon. The ribbon tab is labeled MCsim; application assembly/workbook/installer identifiers remain unchanged.
 - Twelve supplied PNGs in `MonteCarlo.Excel/MonteCarlo.Excel/Icons/` are embedded in the Excel
   assembly. `GetRibbonImage` resolves exact manifest names, clones 32×32 artwork, and fits wider
   images proportionally into a transparent 32×32 canvas without upscaling. New filenames with
@@ -724,25 +737,25 @@ observation and include four zone columns (S:V). Native charts do not
 reproduce that background shading. Export failure can leave a partial new report, never an
 overwritten source/report sheet.
 
-## Telivu Distribution Model
+## MCsim Distribution Model
 
-Telivu is a free and open-source Excel decision-intelligence toolkit as the permanent strategy. The current development application has no paid edition, separate Enterprise edition, subscription, product activation, key, trial, expiry or paid feature gate. Individuals and organizations use the same product. Voluntary donations/sponsorship can fund development; optional training, consulting, implementation or support services must not restrict the core product. No donation provider is configured and no payment/support button is published.
+MCsim is a free and open-source Excel decision-intelligence toolkit as the permanent strategy. The current development application has no paid edition, separate Enterprise edition, subscription, product activation, key, trial, expiry or paid feature gate. Individuals and organizations use the same product. Voluntary donations/sponsorship can fund development; optional training, consulting, implementation or support services must not restrict the core product. No donation provider is configured and no payment/support button is published.
 
 The legal open-source license is **not yet approved/applied**. `OPEN_SOURCE_LICENSE_AUDIT.md` inventories all 17 restored NuGet packages, platform/runtime/compiler components and artwork. Apache-2.0 is preferred, but the pinned Office interop package declares no license and supplied icon/brand ownership is unresolved. Confirm those terms and contributor rights before owner approval; do not claim Apache permission. The application source repository is already public: `https://github.com/unrealvijay1/decision-risk-intelligence-excel`, develop. The separate `telivu` repository contains the public website and existing release distribution.
 
-Product activation architecture was removed rather than bypassed: no LicenseService/validator/trial/storage/info/forms/public verification key or generator project remains. Simulation, Scenario, Optimizer, SPC and Correlations have no entitlement check; genuine model/safety/performance validation is retained. Help/About Telivu replaces the licensing area, shows the actual assembly version and links to the website, application GitHub and issues. It displays pending legal license approval and omits donation controls. Old `%LOCALAPPDATA%\MonteCarloExcel` activation files and HKCU `Software\MonteCarloExcel\TrialState` are ignored and left untouched. Retain ignored private-key/customer-license exclusions as defense against publishing legacy secrets; do not delete backups or rewrite history.
+Product activation architecture was removed rather than bypassed: no LicenseService/validator/trial/storage/info/forms/public verification key or generator project remains. Simulation, Scenario, Optimizer, SPC and Correlations have no entitlement check; genuine model/safety/performance validation is retained. Help/About MCsim replaces the licensing area, shows the actual assembly version and links to the website, application GitHub and issues. It displays pending legal license approval and omits donation controls. Old `%LOCALAPPDATA%\MonteCarloExcel` activation files and HKCU `Software\MonteCarloExcel\TrialState` are ignored and left untouched. Retain ignored private-key/customer-license exclusions as defense against publishing legacy secrets; do not delete backups or rewrite history.
 
-## Telivu public website and download
+## MCsim public website and download
 
 `site/` is the complete static public website: product/features/screenshots/use cases, installation, module reference, model recipes, tutorials, release notes, privacy, legal status and contributions. No placeholders, paid plans, analytics, backend or external fonts. The owner authorized publication of the exact validated activation-free installer as the unsigned prerelease `v0.2.1-activation-free.1`. Assembly version remains 0.2.1. Current download has no activation/trial; legal open-source license approval remains pending. Historical v0.2.1 retains its original asset.
 
 Public website checkout: `artifacts/telivu-publish/`, main, origin `https://github.com/unrealvijay1/telivu.git`; live `https://unrealvijay1.github.io/telivu/`. Publish website files only, never application history/keys/private reports/binaries. `.github/workflows/pages.yml` builds the allowlisted `site/_build`. Website links point to the existing application source; release/download links remain in telivu. Website-only CONTRIBUTING covers Python/Node QA; root CONTRIBUTING covers .NET/Excel development.
 
-The download mechanism retains its shared `[data-download]` handler and HTTPS validation in `site/js/site.js`, configured by `site/site-config.js`; no dynamic release API. Current URL is `https://github.com/unrealvijay1/telivu/releases/download/v0.2.1-activation-free.1/TelivuForExcel-Setup-0.2.1-activation-free.exe`; 117,421,206 bytes, SHA-256 `d296fa49e7244483d3a2446e129bd036bff241cbe366830f5f2aab2d380fc048`. This is the exact validated local activation-free Setup, with the public Telivu asset name. All buttons use this asset. Page script URLs include an activation-free release query to refresh cached configuration; the download label explicitly distinguishes the activation-free build despite its unchanged 0.2.1 assembly version. Historical v0.2.1 remains unchanged (117,427,571 bytes; SHA-256 `7ea29b75f44f4f64181a4c1c062ef6d575eddee004512d6a97194a48d1cf480d`).
+The download mechanism retains its shared `[data-download]` handler and HTTPS validation in `site/js/site.js`, configured by `site/site-config.js`; no dynamic release API. Current URL is `https://github.com/unrealvijay1/telivu/releases/download/v0.2.1-activation-free.1/TelivuForExcel-Setup-0.2.1-activation-free.exe`; 117,421,206 bytes, SHA-256 `d296fa49e7244483d3a2446e129bd036bff241cbe366830f5f2aab2d380fc048`. This is the exact validated local activation-free Setup, with the historical public Telivu asset name. All buttons use this asset. Page script URLs include a mcsim-1 cache query to refresh cached configuration; the download label explicitly distinguishes the activation-free build despite its unchanged 0.2.1 assembly version. Historical v0.2.1 remains unchanged (117,427,571 bytes; SHA-256 `7ea29b75f44f4f64181a4c1c062ef6d575eddee004512d6a97194a48d1cf480d`).
 
 ## Installer and distribution architecture
 
-The installer keeps its working deployment architecture and has no activation step. CustomerGuide instructs Download → Install → Open Excel → Use Telivu. Packed-assembly checks now reject obsolete activation types/key resources and require About Telivu. The 23 RSA/DPAPI-only fixture checks were removed; four regression contracts protect absence of activation/runtime state access, functional ribbon commands, solution/resources and installer invariants. Lifecycle sentinels remain to verify legacy user state is untouched.
+The installer keeps its working deployment architecture and has no activation step. CustomerGuide instructs Download → Install → Open Excel → Use MCsim. Packed-assembly checks now reject obsolete activation types/key resources and require About MCsim. The 23 RSA/DPAPI-only fixture checks were removed; four regression contracts protect absence of activation/runtime state access, functional ribbon commands, solution/resources and installer invariants. Lifecycle sentinels remain to verify legacy user state is untouched.
 
 Product version is **0.2.1**, authoritative in `Directory.Build.props`; assemblies and packed
 XLLs use file/assembly version 0.2.1.0 and product version 0.2.1. Excel-DNA copies managed
@@ -821,7 +834,7 @@ Current package checks verify explicit-export DNA, embedded/sidecar configuratio
 correct x86/x64 PE headers and compiled Core/Excel assembly hashes for both configurations.
 Ribbon packaging checks cover all 12 PNG hashes,
 transparent 32×32 image callback results, five ordered groups and 13 callback mappings
-(12 functional commands unchanged, plus About Telivu replacing licensing);
+(12 functional commands unchanged, plus About MCsim replacing licensing);
 packed Core/Excel SHA-256 hashes match their final compiled assemblies.
 A private Excel instance previously accepted the ribbon Release x64 XLL. Native ribbon interaction, narrow-window
 collapse and actual 100/125/150% Windows DPI rendering remain manual checks; no approved mockup

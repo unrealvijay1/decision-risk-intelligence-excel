@@ -2,18 +2,18 @@ using System.Drawing;
 using System.Windows.Forms;
 using MonteCarlo.Excel;
 
-internal static class AboutTelivuLayoutChecks
+internal static class AboutMCsimLayoutChecks
 {
     public static void Run()
     {
         foreach (float scale in new[] { 1f, 1.25f, 1.5f })
         {
-            using var form = new AboutTelivuForm();
+            using var form = new AboutMCsimForm();
             _ = form.Handle;
             form.Scale(new SizeF(scale, scale));
             form.Show(); form.PerformLayout(); Application.DoEvents();
             var controls = Descendants(form).ToArray();
-            if (form.Text != "About Telivu") throw new Exception("Wrong About title.");
+            if (form.Text != "About MCsim") throw new Exception("Wrong About title.");
             var links = controls.OfType<LinkLabel>().ToArray();
             if (!links.Select(l => l.Text).SequenceEqual(new[] { "Website", "GitHub", "Report an Issue" }))
                 throw new Exception("About links incomplete or unsupported donation link published.");

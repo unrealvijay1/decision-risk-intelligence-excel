@@ -10,7 +10,7 @@ if (md.GetAssemblyDefinition().Version.ToString() != version + ".0") throw new E
 var names = md.TypeDefinitions.Select(h => md.GetTypeDefinition(h)).Select(t => md.GetString(t.Namespace) + "." + md.GetString(t.Name)).ToHashSet();
 if (names.Any(name => name.StartsWith("MonteCarlo.Excel.Licensing.", StringComparison.Ordinal)))
     throw new Exception("Obsolete activation architecture remains in the runtime.");
-foreach (string name in new[] { "MonteCarloRibbon", "MonteCarloAddIn", "SimulationService", "ScenarioSimulationService", "OptimizationService", "AssumptionCorrelationsForm", "SpcConfigurationForm", "SpcResultsForm", "AboutTelivuForm" })
+foreach (string name in new[] { "MonteCarloRibbon", "MonteCarloAddIn", "SimulationService", "ScenarioSimulationService", "OptimizationService", "AssumptionCorrelationsForm", "SpcConfigurationForm", "SpcResultsForm", "AboutMCsimForm" })
     if (!names.Contains("MonteCarlo.Excel." + name)) throw new Exception("Missing product type " + name);
 var resourceNames = new List<string>();
 foreach (var handle in md.ManifestResources) {
@@ -27,4 +27,4 @@ foreach (var handle in md.ManifestResources) {
 if (resourceNames.Count(n => n.StartsWith("MonteCarlo.Excel.Icons.", StringComparison.Ordinal) && n.EndsWith(".png")) != 12) throw new Exception("Ribbon icons missing.");
 var refs = md.AssemblyReferences.Select(h => md.GetString(md.GetAssemblyReference(h).Name)).ToArray();
 if (refs.Any(n => n.Contains("LicenseGenerator") || n == "Microsoft.Office.Interop.Excel" || n == "office")) throw new Exception("Developer/PIA dependency in runtime.");
-Console.WriteLine("PASS: activation-free runtime/About Telivu/12 icons/assembly version/no generator or Office PIA dependencies.");
+Console.WriteLine("PASS: activation-free runtime/About MCsim/12 icons/assembly version/no generator or Office PIA dependencies.");

@@ -1,7 +1,7 @@
-window.TELIVU_CONFIG = Object.freeze({
+window.MCSIM_CONFIG = Object.freeze({
   productVersion: "0.2.1", // Build refreshes from Directory.Build.props.
   downloadEnabled: true,
-  releaseStatus: "Activation-free · Unsigned prerelease", // Filled only after the public prerelease asset is verified.
+  releaseStatus: "Legacy Telivu download · Activation-free · Unsigned prerelease", // Published installer predates MCsim; preserve its verified URL and bytes.
   downloadUrl: "https://github.com/unrealvijay1/telivu/releases/download/v0.2.1-activation-free.1/TelivuForExcel-Setup-0.2.1-activation-free.exe", // Approved public HTTPS release URL only.
   releaseNotesUrl: "https://github.com/unrealvijay1/telivu/releases/tag/v0.2.1-activation-free.1",
   installerSize: "111.98 MiB (117,421,206 bytes)", // Size of the approved public release only.

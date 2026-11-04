@@ -1,13 +1,13 @@
 (() => {
   "use strict";
-  const config = window.TELIVU_CONFIG || {};
+  const config = window.MCSIM_CONFIG || {};
   const script = document.currentScript;
   const base = new URL("../", script.src);
   const https = value => { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password ? u.href : ""; } catch { return ""; } };
   const download = config.downloadEnabled === true ? https(config.downloadUrl) : "";
   document.querySelectorAll("[data-download]").forEach(link => {
     link.href = download || new URL("index.html#download", base).href;
-    link.textContent = download ? "Download Telivu Free" : "Download unavailable";
+    link.textContent = download ? "Download MCsim Free" : "Download unavailable";
   });
   document.querySelectorAll("[data-download-status]").forEach(el => { el.textContent = download ? "Windows installer · " + (config.releaseStatus || "Public release") : "Download unavailable"; });
   document.querySelectorAll("[data-version]").forEach(el => { el.textContent = config.productVersion || ""; });

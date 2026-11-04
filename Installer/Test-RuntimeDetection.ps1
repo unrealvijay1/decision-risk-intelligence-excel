@@ -28,7 +28,7 @@ foreach($arch in @('x86','x64')) {
   if($arch -eq 'x86'){$bytes[$offset+4]=0x4c;$bytes[$offset+5]=0x01}else{$bytes[$offset+4]=0x64;$bytes[$offset+5]=0x86}
   [IO.File]::WriteAllBytes($excel,$bytes)
   $log=Join-Path $directory 'probe.log'
-  $process=Start-Process -FilePath (Join-Path $root "MonteCarloForExcel-Setup-$Version.exe") -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES',('/EXCELPATH="'+$excel+'"'),('/LOG="'+$log+'"')) -WindowStyle Hidden -PassThru
+  $process=Start-Process -FilePath (Join-Path $root "MCsim-Setup-$Version.exe") -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES',('/EXCELPATH="'+$excel+'"'),('/LOG="'+$log+'"')) -WindowStyle Hidden -PassThru
   if(-not $process.WaitForExit(30000)){throw 'Read-only runtime probe timed out'}
   if([IO.File]::ReadAllText($log) -notmatch ("RUNTIME_PROBE architecture="+$arch+"; installed="+$expected)){throw "$arch real runtime registration mismatch"}
   Write-Output "PASS original RuntimeInstalled matches real $arch Desktop Runtime registration (installed=$expected); probe aborts before installation/registration."
